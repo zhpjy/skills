@@ -113,6 +113,69 @@ class InstallSkillTests(unittest.TestCase):
                     clone_repo=fake_clone,
                 )
 
+    def test_install_skill_rejects_invalid_skill_name(self) -> None:
+        install_skill = load_install_skill(self)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir) / "project"
+            project_dir.mkdir()
+
+            invalid_names = ["../demo-skill", "nested/demo-skill", "/tmp/demo-skill"]
+            for skill_name in invalid_names:
+                with self.subTest(skill_name=skill_name):
+                    with self.assertRaisesRegex(
+                        ValueError,
+                        "skill_name must be a single directory name",
+                    ):
+                        install_skill(
+                            repo_url="https://example.com/repo.git",
+                            skill_name=skill_name,
+                            project_root=project_dir,
+                            clone_repo=lambda repo_url, clone_dir: None,
+                        )
+
+    def test_install_skill_preserves_existing_skill_when_copy_fails(self) -> None:
+        module = load_install_skill_module(self)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir) / "project"
+            project_dir.mkdir()
+
+            local_skill_dir = project_dir / ".agents" / "skills" / "demo-skill"
+            local_skill_dir.mkdir(parents=True)
+            (local_skill_dir / "SKILL.md").write_text("old\n", encoding="utf-8")
+            (local_skill_dir / "extra.txt").write_text("stale\n", encoding="utf-8")
+
+            def fake_clone(repo_url: str, clone_dir: Path) -> None:
+                remote_skill_dir = clone_dir / "skills" / "demo-skill"
+                remote_skill_dir.mkdir(parents=True)
+                (remote_skill_dir / "SKILL.md").write_text("new\n", encoding="utf-8")
+
+            original_copytree = module.shutil.copytree
+
+            def failing_copytree(src: Path, dst: Path, *args, **kwargs):
+                if Path(dst).parent == local_skill_dir.parent:
+                    raise OSError("copy failed")
+                return original_copytree(src, dst, *args, **kwargs)
+
+            with mock.patch.object(module.shutil, "copytree", side_effect=failing_copytree):
+                with self.assertRaisesRegex(OSError, "copy failed"):
+                    module.install_skill(
+                        repo_url="https://example.com/repo.git",
+                        skill_name="demo-skill",
+                        project_root=project_dir,
+                        clone_repo=fake_clone,
+                    )
+
+            self.assertEqual(
+                (local_skill_dir / "SKILL.md").read_text(encoding="utf-8"),
+                "old\n",
+            )
+            self.assertEqual(
+                (local_skill_dir / "extra.txt").read_text(encoding="utf-8"),
+                "stale\n",
+            )
+
     def test_main_returns_exit_code_1_on_install_failure(self) -> None:
         module = load_install_skill_module(self)
 

@@ -7,6 +7,7 @@ import sys
 import tempfile
 from pathlib import Path
 from typing import Callable
+from uuid import uuid4
 
 
 def clone_repository(repo_url: str, clone_dir: Path) -> None:
@@ -21,12 +22,30 @@ def clone_repository(repo_url: str, clone_dir: Path) -> None:
         raise RuntimeError(f"Failed to clone repository '{repo_url}': {message}")
 
 
+def validate_skill_name(skill_name: str) -> None:
+    candidate = Path(skill_name)
+    if (
+        not skill_name
+        or candidate.is_absolute()
+        or "/" in skill_name
+        or "\\" in skill_name
+        or skill_name in {".", ".."}
+        or ".." in candidate.parts
+    ):
+        raise ValueError(
+            "skill_name must be a single directory name without path separators, "
+            "absolute paths, or '..'"
+        )
+
+
 def install_skill(
     repo_url: str,
     skill_name: str,
     project_root: Path,
     clone_repo: Callable[[str, Path], None] = clone_repository,
 ) -> Path:
+    validate_skill_name(skill_name)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         clone_dir = Path(temp_dir) / "repo"
         clone_repo(repo_url, clone_dir)
@@ -41,10 +60,28 @@ def install_skill(
 
         target_dir = project_root / ".agents" / "skills" / skill_name
         target_dir.parent.mkdir(parents=True, exist_ok=True)
-        if target_dir.exists():
-            shutil.rmtree(target_dir)
+        staged_dir = target_dir.parent / f".{skill_name}.tmp-{uuid4().hex}"
+        backup_dir = target_dir.parent / f".{skill_name}.bak-{uuid4().hex}"
 
-        shutil.copytree(remote_skill_dir, target_dir)
+        shutil.copytree(remote_skill_dir, staged_dir)
+
+        replaced_existing = False
+        try:
+            if target_dir.exists():
+                target_dir.rename(backup_dir)
+                replaced_existing = True
+
+            staged_dir.rename(target_dir)
+        except Exception:
+            if replaced_existing and backup_dir.exists() and not target_dir.exists():
+                backup_dir.rename(target_dir)
+            if staged_dir.exists():
+                shutil.rmtree(staged_dir, ignore_errors=True)
+            raise
+
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir)
+
         return target_dir
 
 
