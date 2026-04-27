@@ -1,7 +1,10 @@
 import importlib
+import io
+import contextlib
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 def load_install_skill(test_case: unittest.TestCase):
@@ -18,6 +21,17 @@ def load_install_skill(test_case: unittest.TestCase):
     except AttributeError as exc:
         test_case.fail(
             "missing implementation function 'install_skill' in tools.install_skill"
+        )
+
+
+def load_install_skill_module(test_case: unittest.TestCase):
+    try:
+        return importlib.import_module("tools.install_skill")
+    except ModuleNotFoundError:
+        test_case.fail(
+            "missing implementation module 'tools.install_skill'; "
+            "create tools/install_skill.py with install_skill(), "
+            "clone_repository(), and main()"
         )
 
 
@@ -77,6 +91,44 @@ class InstallSkillTests(unittest.TestCase):
                 "new\n",
             )
             self.assertFalse((installed_dir / "extra.txt").exists())
+
+    def test_install_skill_errors_when_remote_skill_is_missing(self) -> None:
+        install_skill = load_install_skill(self)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir) / "project"
+            project_dir.mkdir()
+
+            def fake_clone(repo_url: str, clone_dir: Path) -> None:
+                (clone_dir / "skills").mkdir(parents=True)
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "Skill 'missing-skill' not found in repository",
+            ):
+                install_skill(
+                    repo_url="https://example.com/repo.git",
+                    skill_name="missing-skill",
+                    project_root=project_dir,
+                    clone_repo=fake_clone,
+                )
+
+    def test_main_returns_exit_code_1_on_install_failure(self) -> None:
+        module = load_install_skill_module(self)
+
+        stderr = io.StringIO()
+        with mock.patch.object(
+            module,
+            "install_skill",
+            side_effect=RuntimeError("clone failed"),
+        ):
+            with contextlib.redirect_stderr(stderr):
+                exit_code = module.main(
+                    ["--repo", "https://example.com/repo.git", "--skill", "demo-skill"]
+                )
+
+        self.assertEqual(exit_code, 1)
+        self.assertIn("clone failed", stderr.getvalue())
 
 
 if __name__ == "__main__":
