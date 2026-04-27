@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import json
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,46 @@ def validate_skill_name(skill_name: str) -> None:
             "skill_name must be a single directory name without path separators, "
             "absolute paths, or '..'"
         )
+
+
+def replace_directory(source_dir: Path, target_dir: Path) -> Path:
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(source_dir, target_dir)
+    return target_dir
+
+
+def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
+    repo_info = {
+        "repo_root": str(repo_root),
+        "repo_url": repo_url,
+    }
+    (skill_dir / "repo-info.json").write_text(
+        json.dumps(repo_info, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def sync_local_skill_manager(
+    project_root: Path,
+    repo_root: Path,
+    repo_url: str,
+    pushed_skill_name: str,
+    pushed_source_dir: Path,
+) -> None:
+    if pushed_skill_name == "skill-manager":
+        manager_source_dir = pushed_source_dir
+    else:
+        manager_source_dir = repo_root / "skills" / "skill-manager"
+
+    manager_skill_file = manager_source_dir / "SKILL.md"
+    if not manager_skill_file.is_file():
+        return
+
+    manager_target_dir = project_root / ".agents" / "skills" / "skill-manager"
+    replace_directory(manager_source_dir, manager_target_dir)
+    write_repo_info(manager_target_dir, repo_root, repo_url)
 
 
 def resolve_source_dir(skill_name: str, source: str | None) -> Path:
@@ -82,6 +123,7 @@ def directories_equal(left: Path, right: Path) -> bool:
 
 
 def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
+    project_root = Path.cwd()
     repo_root = get_repo_root(script_path)
     origin_url = get_origin_url(repo_root)
 
@@ -91,17 +133,16 @@ def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
 
         target_dir = clone_dir / "skills" / skill_name
         if target_dir.exists() and directories_equal(source_dir, target_dir):
+            sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
             print(f"No changes for skill '{skill_name}'.")
             return
 
-        if target_dir.exists():
-            shutil.rmtree(target_dir)
-        target_dir.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(source_dir, target_dir)
+        replace_directory(source_dir, target_dir)
 
         run_git(["add", f"skills/{skill_name}"], cwd=clone_dir)
         run_git(["commit", "-m", f"Update skill: {skill_name}"], cwd=clone_dir)
         run_git(["push"], cwd=clone_dir)
+        sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
         print(f"Pushed skill '{skill_name}' to remote repository.")
 
 

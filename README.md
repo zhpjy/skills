@@ -57,3 +57,12 @@ uv run /path/to/this-repo/tools/push_skill.py --skill <skill-name> --source /pat
 - 脚本会在 `/tmp` 中临时 clone 这个仓库，再在临时 clone 中覆盖、提交并 push。
 - 如果远端当前内容和本地源目录完全一致，脚本会直接返回成功，不提交、不 push。
 - 所有 git 操作都发生在临时 clone 中，不会修改你当前业务仓库的 git 状态。
+
+## skill-manager
+
+仓库中包含一个 `skill-manager` skill，用于告诉 AI 什么时候该调用下载器，什么时候该调用上传器。
+
+- `sync_skill.py` 成功后，会自动安装或更新当前项目中的 `.agents/skills/skill-manager/`
+- `push_skill.py` 成功后也会自动安装或更新同一路径
+- 即使上传器遇到“内容无变化直接成功返回”的情况，也会同步 `skill-manager`
+- 两个脚本都会在本地 `skill-manager` 目录中写入 `repo-info.json`，用于记录这个 skills 仓库的本地路径和仓库 URL，供后续 AI 调用脚本时读取

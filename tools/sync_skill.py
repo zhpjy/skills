@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,55 @@ def validate_skill_name(skill_name: str) -> None:
         )
 
 
+def replace_directory(source_dir: Path, target_dir: Path) -> Path:
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    staged_dir = target_dir.parent / f".{target_dir.name}.tmp-{uuid4().hex}"
+    backup_dir = target_dir.parent / f".{target_dir.name}.bak-{uuid4().hex}"
+
+    shutil.copytree(source_dir, staged_dir)
+
+    replaced_existing = False
+    try:
+        if target_dir.exists():
+            target_dir.rename(backup_dir)
+            replaced_existing = True
+
+        staged_dir.rename(target_dir)
+    except Exception:
+        if replaced_existing and backup_dir.exists() and not target_dir.exists():
+            backup_dir.rename(target_dir)
+        if staged_dir.exists():
+            shutil.rmtree(staged_dir, ignore_errors=True)
+        raise
+
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir)
+
+    return target_dir
+
+
+def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
+    repo_info = {
+        "repo_root": str(repo_root),
+        "repo_url": repo_url,
+    }
+    (skill_dir / "repo-info.json").write_text(
+        json.dumps(repo_info, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def sync_skill_manager(clone_dir: Path, project_root: Path, repo_root: Path, repo_url: str) -> None:
+    manager_source_dir = clone_dir / "skills" / "skill-manager"
+    manager_skill_file = manager_source_dir / "SKILL.md"
+    if not manager_skill_file.is_file():
+        return
+
+    manager_target_dir = project_root / ".agents" / "skills" / "skill-manager"
+    replace_directory(manager_source_dir, manager_target_dir)
+    write_repo_info(manager_target_dir, repo_root, repo_url)
+
+
 def install_skill(
     repo_url: str,
     skill_name: str,
@@ -59,28 +109,13 @@ def install_skill(
             )
 
         target_dir = project_root / ".agents" / "skills" / skill_name
-        target_dir.parent.mkdir(parents=True, exist_ok=True)
-        staged_dir = target_dir.parent / f".{skill_name}.tmp-{uuid4().hex}"
-        backup_dir = target_dir.parent / f".{skill_name}.bak-{uuid4().hex}"
+        replace_directory(remote_skill_dir, target_dir)
 
-        shutil.copytree(remote_skill_dir, staged_dir)
-
-        replaced_existing = False
-        try:
-            if target_dir.exists():
-                target_dir.rename(backup_dir)
-                replaced_existing = True
-
-            staged_dir.rename(target_dir)
-        except Exception:
-            if replaced_existing and backup_dir.exists() and not target_dir.exists():
-                backup_dir.rename(target_dir)
-            if staged_dir.exists():
-                shutil.rmtree(staged_dir, ignore_errors=True)
-            raise
-
-        if backup_dir.exists():
-            shutil.rmtree(backup_dir)
+        repo_root = Path(__file__).resolve().parent.parent
+        if skill_name == "skill-manager":
+            write_repo_info(target_dir, repo_root, repo_url)
+        else:
+            sync_skill_manager(clone_dir, project_root, repo_root, repo_url)
 
         return target_dir
 
