@@ -22,7 +22,7 @@
 安装命令如下：
 
 ```bash
-uv run /path/to/this-repo/tools/install_skill.py --repo <repo-url> --skill <skill-name>
+uv run /path/to/this-repo/tools/sync_skill.py --repo <repo-url> --skill <skill-name>
 ```
 
 安装行为说明：

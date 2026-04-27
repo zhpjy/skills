@@ -9,28 +9,28 @@ from unittest import mock
 
 def load_install_skill(test_case: unittest.TestCase):
     try:
-        module = importlib.import_module("tools.install_skill")
+        module = importlib.import_module("tools.sync_skill")
     except ModuleNotFoundError as exc:
         test_case.fail(
-            "missing implementation module 'tools.install_skill'; "
-            "create tools/install_skill.py with an install_skill() function"
+            "missing implementation module 'tools.sync_skill'; "
+            "create tools/sync_skill.py with an install_skill() function"
         )
 
     try:
         return module.install_skill
     except AttributeError as exc:
         test_case.fail(
-            "missing implementation function 'install_skill' in tools.install_skill"
+            "missing implementation function 'install_skill' in tools.sync_skill"
         )
 
 
 def load_install_skill_module(test_case: unittest.TestCase):
     try:
-        return importlib.import_module("tools.install_skill")
+        return importlib.import_module("tools.sync_skill")
     except ModuleNotFoundError:
         test_case.fail(
-            "missing implementation module 'tools.install_skill'; "
-            "create tools/install_skill.py with install_skill(), "
+            "missing implementation module 'tools.sync_skill'; "
+            "create tools/sync_skill.py with install_skill(), "
             "clone_repository(), and main()"
         )
 
