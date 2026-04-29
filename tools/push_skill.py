@@ -2,61 +2,11 @@ from __future__ import annotations
 
 import argparse
 import filecmp
-import json
-import shutil
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-
-def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        message = result.stderr.strip() or result.stdout.strip() or "unknown git error"
-        raise RuntimeError(f"git {' '.join(args)} failed: {message}")
-    return result
-
-
-def validate_skill_name(skill_name: str) -> None:
-    candidate = Path(skill_name)
-    if (
-        not skill_name
-        or candidate.is_absolute()
-        or "/" in skill_name
-        or "\\" in skill_name
-        or skill_name in {".", ".."}
-        or ".." in candidate.parts
-    ):
-        raise ValueError(
-            "skill_name must be a single directory name without path separators, "
-            "absolute paths, or '..'"
-        )
-
-
-def replace_directory(source_dir: Path, target_dir: Path) -> Path:
-    if target_dir.exists():
-        shutil.rmtree(target_dir)
-    target_dir.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(source_dir, target_dir)
-    return target_dir
-
-
-def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
-    repo_info = {
-        "repo_root": str(repo_root),
-        "repo_url": repo_url,
-    }
-    (skill_dir / "repo-info.json").write_text(
-        json.dumps(repo_info, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+from tools.lib.common import replace_directory, run_git, validate_skill_name, write_repo_info
 
 
 def sync_local_skill_manager(

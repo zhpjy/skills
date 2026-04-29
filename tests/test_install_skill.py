@@ -151,14 +151,18 @@ class InstallSkillTests(unittest.TestCase):
                 remote_skill_dir.mkdir(parents=True)
                 (remote_skill_dir / "SKILL.md").write_text("new\n", encoding="utf-8")
 
-            original_copytree = module.shutil.copytree
+            original_copytree = module.replace_directory.__globals__["shutil"].copytree
 
             def failing_copytree(src: Path, dst: Path, *args, **kwargs):
                 if Path(dst).parent == local_skill_dir.parent:
                     raise OSError("copy failed")
                 return original_copytree(src, dst, *args, **kwargs)
 
-            with mock.patch.object(module.shutil, "copytree", side_effect=failing_copytree):
+            with mock.patch.object(
+                module.replace_directory.__globals__["shutil"],
+                "copytree",
+                side_effect=failing_copytree,
+            ):
                 with self.assertRaisesRegex(OSError, "copy failed"):
                     module.install_skill(
                         repo_url="https://example.com/repo.git",
