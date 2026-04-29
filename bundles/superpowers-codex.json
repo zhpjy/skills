@@ -1,9 +1,12 @@
 {
   "name": "superpowers-codex",
-  "source": "superpowers",
-  "install_root": ".agents/skills",
+  "kind": "bundle",
+  "agent": "codex",
+  "description": "Superpowers bundle for Codex projects",
   "skills": [
-    "brainstorming",
-    "skill-manager"
+    {
+      "source": "local",
+      "path": "skill-manager"
+    }
   ]
 }

@@ -1,6 +1,8 @@
 {
-  "source": "superpowers",
-  "status": "pending",
+  "name": "superpowers",
+  "kind": "vendor-state",
+  "last_synced_ref": null,
   "last_synced_at": null,
-  "revision": null
+  "last_source_count": 0,
+  "last_synced_count": 0
 }

@@ -1,14 +1,23 @@
 {
   "name": "superpowers",
-  "kind": "git",
-  "default_bundle": "superpowers-codex",
-  "vendor_dir": "vendor/superpowers",
-  "state_file": "registry/state/superpowers.json",
+  "kind": "vendor-source",
   "upstream": {
-    "repo_url": "https://github.com/example/superpowers.git",
-    "branch": "main"
+    "repo": "https://github.com/obra/superpowers.git",
+    "ref": "main"
   },
-  "bundles": [
-    "bundles/superpowers-codex.json"
-  ]
+  "sync": {
+    "mode": "directory",
+    "source_path": "skills",
+    "target_path": "vendor/superpowers/skills"
+  },
+  "filter": {
+    "default_policy": "include-all",
+    "blacklist": [
+      ".experimental"
+    ]
+  },
+  "local": {
+    "managed": true,
+    "editable": false
+  }
 }
