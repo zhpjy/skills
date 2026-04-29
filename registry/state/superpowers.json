@@ -1,8 +1,8 @@
 {
+  "last_synced_ref": "6efe32c9e2dd002d0c394e861e0529675d1ab32e",
+  "last_synced_at": "2026-04-29T14:33:41.727561+00:00",
+  "last_source_count": 14,
+  "last_synced_count": 14,
   "name": "superpowers",
-  "kind": "vendor-state",
-  "last_synced_ref": null,
-  "last_synced_at": null,
-  "last_source_count": 0,
-  "last_synced_count": 0
+  "kind": "vendor-state"
 }
