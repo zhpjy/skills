@@ -8,12 +8,26 @@
 
 ```text
 .
+|-- bundles/
 |-- docs/
+|-- registry/
 |-- skills/
+|-- vendor/
 `-- tools/
 ```
 
 其中，`skills/` 目录用于存放 skill，`tools/` 目录用于存放工具。
+
+## 新架构概览
+
+为后续引入可追踪的来源管理与 bundle 组织方式，仓库新增了一层轻量注册表脚手架：
+
+- `registry/sources/`：记录上游来源定义，例如来源类型、仓库地址、默认 bundle、状态文件位置。
+- `registry/state/`：记录每个来源的本地同步状态，例如当前是否尚未同步、最近同步时间、对应 revision。
+- `bundles/`：定义面向具体运行环境的安装清单，把多个 skill 按 bundle 组织起来。
+- `vendor/`：预留给后续同步下来的第三方或上游内容，当前先保留目录占位。
+
+当前已加入 `superpowers` 这一组基础元数据，用于作为后续 registry 读写和同步逻辑的最小样例。
 
 ## 安装器使用说明
 

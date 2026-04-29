@@ -1,0 +1,9 @@
+{
+  "name": "superpowers-codex",
+  "source": "superpowers",
+  "install_root": ".agents/skills",
+  "skills": [
+    "brainstorming",
+    "skill-manager"
+  ]
+}

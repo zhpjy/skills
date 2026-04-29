@@ -1,0 +1,14 @@
+{
+  "name": "superpowers",
+  "kind": "git",
+  "default_bundle": "superpowers-codex",
+  "vendor_dir": "vendor/superpowers",
+  "state_file": "registry/state/superpowers.json",
+  "upstream": {
+    "repo_url": "https://github.com/example/superpowers.git",
+    "branch": "main"
+  },
+  "bundles": [
+    "bundles/superpowers-codex.json"
+  ]
+}
