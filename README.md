@@ -27,7 +27,7 @@
 - `bundles/`：存放面向不同 agent 的清单文件，用来声明一组可安装技能。
 - `vendor/`：存放同步到本地的外部内容，当前先保留目录占位。
 
-当前已加入 `superpowers` 的最小初始样例，用于支撑后续 registry 读取、同步和 bundle 装配。
+当前已加入 `superpowers` 的 source/state 元数据，以及一个面向 Codex 的最小 bundle 清单，用于支撑后续同步与装配；当前尚未完成完整的 bundle 装配建模。
 
 ## 安装器使用说明
 
