@@ -5,6 +5,62 @@
   "description": "Superpowers bundle for Codex projects",
   "skills": [
     {
+      "source": "vendor/superpowers",
+      "path": "using-superpowers"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "brainstorming"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "dispatching-parallel-agents"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "executing-plans"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "finishing-a-development-branch"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "receiving-code-review"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "requesting-code-review"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "subagent-driven-development"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "systematic-debugging"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "test-driven-development"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "using-git-worktrees"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "verification-before-completion"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "writing-plans"
+    },
+    {
+      "source": "vendor/superpowers",
+      "path": "writing-skills"
+    },
+    {
       "source": "local",
       "path": "skill-manager"
     }

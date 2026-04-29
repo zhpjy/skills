@@ -59,6 +59,12 @@ uv run /home/zhpjy/project/skills/tools/sync_skill.py --repo git@github.com:zhpj
 uv run <repo_root>/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
+如果用户表达的是“在项目中启用 superpowers”“启用 superpowers 能力包”或等价意图，优先调用 bundle 同步器，而不是逐个安装 skill：
+
+```bash
+uv run <repo_root>/tools/sync_bundle.py --bundle superpowers-codex
+```
+
 如果没有可用的 `repo-info.json`，则使用这个仓库的默认信息：
 
 - `repo_root`: `/home/zhpjy/project/skills`
@@ -92,6 +98,6 @@ uv run <repo_root>/tools/push_skill.py --skill <skill-name>
 
 ## Notes
 
-- `sync_skill.py` 和 `push_skill.py` 成功后都会自动更新当前项目中的 `skill-manager`
+- `sync_skill.py`、`sync_bundle.py` 和 `push_skill.py` 成功后都会自动更新当前项目中的 `skill-manager`
 - 不要为了无关任务主动安装 `skill-manager`
 - 只在处理 skill 管理请求、且本地还没有 `skill-manager` 时，才执行 bootstrap 安装

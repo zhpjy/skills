@@ -54,7 +54,7 @@ class RegistryModelTests(unittest.TestCase):
         self.assertEqual(state["last_source_count"], 0)
         self.assertEqual(state["last_synced_count"], 0)
 
-    def test_superpowers_bundle_keeps_minimal_initial_manifest(self) -> None:
+    def test_superpowers_bundle_lists_explicit_codex_skills(self) -> None:
         bundle = json.loads(BUNDLE_PATH.read_text(encoding="utf-8"))
 
         self.assertEqual(bundle["name"], "superpowers-codex")
@@ -66,7 +66,41 @@ class RegistryModelTests(unittest.TestCase):
         )
         self.assertEqual(
             bundle["skills"],
-            [{"source": "local", "path": "skill-manager"}],
+            [
+                {"source": "vendor/superpowers", "path": "using-superpowers"},
+                {"source": "vendor/superpowers", "path": "brainstorming"},
+                {
+                    "source": "vendor/superpowers",
+                    "path": "dispatching-parallel-agents",
+                },
+                {"source": "vendor/superpowers", "path": "executing-plans"},
+                {
+                    "source": "vendor/superpowers",
+                    "path": "finishing-a-development-branch",
+                },
+                {"source": "vendor/superpowers", "path": "receiving-code-review"},
+                {
+                    "source": "vendor/superpowers",
+                    "path": "requesting-code-review",
+                },
+                {
+                    "source": "vendor/superpowers",
+                    "path": "subagent-driven-development",
+                },
+                {"source": "vendor/superpowers", "path": "systematic-debugging"},
+                {
+                    "source": "vendor/superpowers",
+                    "path": "test-driven-development",
+                },
+                {"source": "vendor/superpowers", "path": "using-git-worktrees"},
+                {
+                    "source": "vendor/superpowers",
+                    "path": "verification-before-completion",
+                },
+                {"source": "vendor/superpowers", "path": "writing-plans"},
+                {"source": "vendor/superpowers", "path": "writing-skills"},
+                {"source": "local", "path": "skill-manager"},
+            ],
         )
 
     def test_vendor_directory_has_placeholder_file(self) -> None:

@@ -12,6 +12,7 @@ description: Use when the user wants to download a skill from this skills reposi
 - 安装某个 skill
 - 更新本地 skill
 - 从 skills 仓库获取某个 skill
+- 在项目中启用 superpowers
 - 上传某个 skill
 - 把本地 skill 更新回 skills 仓库
 
@@ -34,11 +35,18 @@ description: Use when the user wants to download a skill from this skills reposi
 uv run <repo_root>/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
+如果用户说的是“在项目中启用 superpowers”“启用 superpowers bundle”或等价意图，优先调用 bundle 同步器，而不是逐个安装：
+
+```bash
+uv run <repo_root>/tools/sync_bundle.py --bundle superpowers-codex
+```
+
 默认行为：
 
 - 从仓库中的 `skills/<skill-name>/` 获取 skill
 - 安装到当前项目 `.agents/skills/<skill-name>/`
 - 如果本地已存在同名 skill，则直接覆盖更新
+- bundle 同步会把 `bundles/superpowers-codex.json` 中声明的整组 skill 安装到当前项目 `.agents/skills/`
 
 ## 上传本地 skill
 
@@ -68,4 +76,4 @@ uv run <repo_root>/tools/push_skill.py --skill <skill-name> --source /path/to/lo
 
 ## 自更新说明
 
-这两个脚本在成功路径上都会自动安装或更新当前项目里的 `skill-manager`，这样后续 AI 会使用同一套规则继续工作。
+这三个脚本在成功路径上都会自动安装或更新当前项目里的 `skill-manager`，这样后续 AI 会使用同一套规则继续工作。
