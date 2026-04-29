@@ -1,25 +1,22 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Callable
 
-from tools.lib.common import replace_directory, validate_skill_name, write_repo_info
+from tools.lib.common import replace_directory, run_git, validate_skill_name, write_repo_info
 
 
 def clone_repository(repo_url: str, clone_dir: Path) -> None:
-    result = subprocess.run(
-        ["git", "clone", "--depth=1", repo_url, str(clone_dir)],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        message = result.stderr.strip() or result.stdout.strip() or "unknown git error"
-        raise RuntimeError(f"Failed to clone repository '{repo_url}': {message}")
+    try:
+        run_git(["clone", "--depth=1", repo_url, str(clone_dir)], cwd=Path.cwd())
+    except RuntimeError as exc:
+        _, _, detail = str(exc).partition(": ")
+        raise RuntimeError(
+            f"Failed to clone repository '{repo_url}': {detail or str(exc)}"
+        ) from exc
 
 def sync_skill_manager(clone_dir: Path, project_root: Path, repo_root: Path, repo_url: str) -> None:
     manager_source_dir = clone_dir / "skills" / "skill-manager"

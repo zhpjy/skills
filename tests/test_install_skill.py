@@ -36,6 +36,28 @@ def load_install_skill_module(test_case: unittest.TestCase):
 
 
 class InstallSkillTests(unittest.TestCase):
+    def test_clone_repository_wraps_run_git_failure_with_repo_context(self) -> None:
+        module = load_install_skill_module(self)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            clone_dir = Path(temp_dir) / "repo"
+
+            with mock.patch.object(
+                module,
+                "run_git",
+                side_effect=RuntimeError("git clone failed: permission denied"),
+            ) as run_git_mock:
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "Failed to clone repository 'https://example.com/repo.git': permission denied",
+                ):
+                    module.clone_repository("https://example.com/repo.git", clone_dir)
+
+        run_git_mock.assert_called_once_with(
+            ["clone", "--depth=1", "https://example.com/repo.git", str(clone_dir)],
+            cwd=Path.cwd(),
+        )
+
     def test_install_skill_copies_remote_directory_into_local_agents(self) -> None:
         install_skill = load_install_skill(self)
 
