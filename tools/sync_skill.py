@@ -6,6 +6,9 @@ import tempfile
 from pathlib import Path
 from typing import Callable
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from tools.lib.common import replace_directory, run_git, validate_skill_name, write_repo_info
 
 
