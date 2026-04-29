@@ -157,6 +157,46 @@ class SyncVendorTests(unittest.TestCase):
             self.assertEqual(persisted_state["last_source_count"], 4)
             self.assertEqual(persisted_state["last_synced_count"], 2)
 
+    def test_sync_vendor_source_rejects_target_path_outside_vendor_tree(self) -> None:
+        from tools.sync_vendor import sync_vendor_source
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            (repo_root / "registry" / "sources").mkdir(parents=True)
+            (repo_root / "registry" / "state").mkdir(parents=True)
+
+            source_config = {
+                "name": "vendor-source",
+                "kind": "vendor-source",
+                "upstream": {
+                    "repo": "https://example.invalid/repo.git",
+                    "ref": "main",
+                },
+                "sync": {
+                    "mode": "directory",
+                    "source_path": "skills",
+                    "target_path": ".agents/skills/escape",
+                },
+                "filter": {
+                    "default_policy": "include-all",
+                    "blacklist": [],
+                },
+                "local": {
+                    "managed": True,
+                    "editable": False,
+                },
+            }
+            (repo_root / "registry" / "sources" / "vendor-source.json").write_text(
+                json.dumps(source_config, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "sync.target_path must be a relative path under vendor/",
+            ):
+                sync_vendor_source(repo_root, "vendor-source")
+
     @mock.patch("tools.sync_vendor.sync_vendor_source")
     def test_main_syncs_single_source(self, sync_vendor_source_mock: mock.Mock) -> None:
         from tools.sync_vendor import main

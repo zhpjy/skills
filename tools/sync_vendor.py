@@ -43,11 +43,36 @@ def write_state(repo_root: Path, source_name: str, state: dict) -> Path:
     return state_path
 
 
+def resolve_vendor_target_path(repo_root: Path, target_path: str) -> Path:
+    candidate = Path(target_path)
+    if candidate.is_absolute():
+        raise ValueError("sync.target_path must be a relative path under vendor/")
+
+    normalized_parts: list[str] = []
+    for part in candidate.parts:
+        if part in {"", "."}:
+            continue
+        if part == "..":
+            if normalized_parts:
+                normalized_parts.pop()
+            else:
+                normalized_parts.append(part)
+            continue
+        normalized_parts.append(part)
+
+    normalized = Path(*normalized_parts)
+    if not normalized.parts or normalized.parts[0] != "vendor" or ".." in normalized.parts:
+        raise ValueError("sync.target_path must be a relative path under vendor/")
+
+    return repo_root / normalized
+
+
 def sync_vendor_source(repo_root: Path, source_name: str) -> dict:
     config = load_source_config(repo_root, source_name)
     upstream = config["upstream"]
     sync = config["sync"]
     blacklist = set(config.get("filter", {}).get("blacklist", []))
+    target_dir = resolve_vendor_target_path(repo_root, sync["target_path"])
 
     with tempfile.TemporaryDirectory(prefix="sync-vendor-") as temp_dir:
         temp_root = Path(temp_dir)
@@ -72,7 +97,7 @@ def sync_vendor_source(repo_root: Path, source_name: str) -> dict:
         for candidate in candidates:
             replace_directory(candidate, staged_root / candidate.name)
 
-        replace_directory(staged_root, repo_root / sync["target_path"])
+        replace_directory(staged_root, target_dir)
         state = {
             "last_synced_ref": resolved_ref,
             "last_synced_at": datetime.now(timezone.utc).isoformat(),
