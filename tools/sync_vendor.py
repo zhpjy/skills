@@ -44,9 +44,20 @@ def write_state(repo_root: Path, source_name: str, state: dict) -> Path:
 
 
 def resolve_vendor_target_path(repo_root: Path, target_path: str) -> Path:
-    candidate = Path(target_path)
-    if candidate.is_absolute():
+    normalized = normalize_relative_path(
+        target_path,
+        "sync.target_path must be a relative path under vendor/",
+    )
+    if not normalized.parts or normalized.parts[0] != "vendor":
         raise ValueError("sync.target_path must be a relative path under vendor/")
+
+    return repo_root / normalized
+
+
+def normalize_relative_path(raw_path: str, error_message: str) -> Path:
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        raise ValueError(error_message)
 
     normalized_parts: list[str] = []
     for part in candidate.parts:
@@ -61,10 +72,22 @@ def resolve_vendor_target_path(repo_root: Path, target_path: str) -> Path:
         normalized_parts.append(part)
 
     normalized = Path(*normalized_parts)
-    if not normalized.parts or normalized.parts[0] != "vendor" or ".." in normalized.parts:
-        raise ValueError("sync.target_path must be a relative path under vendor/")
+    if ".." in normalized.parts:
+        raise ValueError(error_message)
+    return normalized
 
-    return repo_root / normalized
+
+def resolve_clone_source_path(clone_dir: Path, source_path: str) -> Path:
+    normalized = normalize_relative_path(
+        source_path,
+        "sync.source_path must be a relative path within the cloned repository",
+    )
+    return clone_dir / normalized
+
+
+def validate_sync_mode(mode: str) -> None:
+    if mode != "directory":
+        raise ValueError("sync.mode must be 'directory'")
 
 
 def sync_vendor_source(repo_root: Path, source_name: str) -> dict:
@@ -72,11 +95,13 @@ def sync_vendor_source(repo_root: Path, source_name: str) -> dict:
     upstream = config["upstream"]
     sync = config["sync"]
     blacklist = set(config.get("filter", {}).get("blacklist", []))
+    validate_sync_mode(sync["mode"])
     target_dir = resolve_vendor_target_path(repo_root, sync["target_path"])
 
     with tempfile.TemporaryDirectory(prefix="sync-vendor-") as temp_dir:
         temp_root = Path(temp_dir)
         clone_dir = temp_root / "repo"
+        source_root = resolve_clone_source_path(clone_dir, sync["source_path"])
         run_git(
             [
                 "clone",
@@ -89,7 +114,6 @@ def sync_vendor_source(repo_root: Path, source_name: str) -> dict:
             cwd=repo_root,
         )
         resolved_ref = run_git(["rev-parse", "HEAD"], cwd=clone_dir).stdout.strip()
-        source_root = clone_dir / sync["source_path"]
         candidates = collect_sync_candidates(source_root, blacklist)
 
         staged_root = temp_root / "staged"

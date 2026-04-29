@@ -197,6 +197,86 @@ class SyncVendorTests(unittest.TestCase):
             ):
                 sync_vendor_source(repo_root, "vendor-source")
 
+    def test_sync_vendor_source_rejects_source_path_outside_clone_tree(self) -> None:
+        from tools.sync_vendor import sync_vendor_source
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            (repo_root / "registry" / "sources").mkdir(parents=True)
+            (repo_root / "registry" / "state").mkdir(parents=True)
+
+            source_config = {
+                "name": "vendor-source",
+                "kind": "vendor-source",
+                "upstream": {
+                    "repo": "https://example.invalid/repo.git",
+                    "ref": "main",
+                },
+                "sync": {
+                    "mode": "directory",
+                    "source_path": "../skills",
+                    "target_path": "vendor/vendor-source/skills",
+                },
+                "filter": {
+                    "default_policy": "include-all",
+                    "blacklist": [],
+                },
+                "local": {
+                    "managed": True,
+                    "editable": False,
+                },
+            }
+            (repo_root / "registry" / "sources" / "vendor-source.json").write_text(
+                json.dumps(source_config, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "sync.source_path must be a relative path within the cloned repository",
+            ):
+                sync_vendor_source(repo_root, "vendor-source")
+
+    def test_sync_vendor_source_rejects_unsupported_sync_mode(self) -> None:
+        from tools.sync_vendor import sync_vendor_source
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = Path(temp_dir)
+            (repo_root / "registry" / "sources").mkdir(parents=True)
+            (repo_root / "registry" / "state").mkdir(parents=True)
+
+            source_config = {
+                "name": "vendor-source",
+                "kind": "vendor-source",
+                "upstream": {
+                    "repo": "https://example.invalid/repo.git",
+                    "ref": "main",
+                },
+                "sync": {
+                    "mode": "file",
+                    "source_path": "skills",
+                    "target_path": "vendor/vendor-source/skills",
+                },
+                "filter": {
+                    "default_policy": "include-all",
+                    "blacklist": [],
+                },
+                "local": {
+                    "managed": True,
+                    "editable": False,
+                },
+            }
+            (repo_root / "registry" / "sources" / "vendor-source.json").write_text(
+                json.dumps(source_config, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError,
+                "sync.mode must be 'directory'",
+            ):
+                sync_vendor_source(repo_root, "vendor-source")
+
     @mock.patch("tools.sync_vendor.sync_vendor_source")
     def test_main_syncs_single_source(self, sync_vendor_source_mock: mock.Mock) -> None:
         from tools.sync_vendor import main
