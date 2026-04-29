@@ -1,0 +1,4 @@
+interface:
+  display_name: "架构交接文档"
+  short_description: "提炼架构讨论与设计取舍，生成可直接接手的交接文档"
+  default_prompt: "Use $writing-architecture-handoffs to turn this architecture discussion into a concise handoff for the next agent."
