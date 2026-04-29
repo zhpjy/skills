@@ -25,9 +25,30 @@
 - `registry/sources/`：存放来源配置，描述每个来源的上游位置与同步目标。
 - `registry/state/`：存放来源状态，记录本地同步后的基础结果与时间信息。
 - `bundles/`：存放面向不同 agent 的清单文件，用来声明一组可安装技能。
-- `vendor/`：存放同步到本地的外部内容，当前先保留目录占位。
+- `vendor/`：存放同步到本地的外部 skill 内容。
 
-当前已加入 `superpowers` 的 source/state 元数据，以及一个面向 Codex 的最小 bundle 清单，用于支撑后续同步与装配；当前尚未完成完整的 bundle 装配建模。
+当前已加入 `superpowers` 的 source/state 元数据，以及一个面向 Codex 的显式 `superpowers-codex` bundle 清单，用于支撑项目级能力启用。
+
+## vendor 自动同步
+
+仓库提供 GitHub Actions 工作流用于自动同步 vendor 内容。该工作流会通过手动触发和定时任务运行，并执行：
+
+```bash
+uv run tools/sync_vendor.py --all
+```
+
+行为说明：
+
+- GitHub Actions 会定时运行 `uv run tools/sync_vendor.py --all`
+- 工作流运行后会输出 `git status --short`，用于展示同步后的工作区状态
+- 工作流内部会额外基于 `git status --porcelain=v1 -z` 做结构化检查，判断是否只改动了 `vendor/` 与 `registry/state/`
+- 对 rename/copy 这类双路径变更，旧路径和新路径都会被纳入同一套限制检查
+- 当 `vendor/` 或 `registry/state/` 有变化时，工作流会直接提交到 `main`
+- 如果同步过程中检测到这两个目录之外也出现改动，工作流会直接失败，不会带着脏工作区继续提交
+- 无论是定时触发还是手动触发，工作流都会以 `main` 为基准执行同步并回推到 `main`
+- 工作流要求仓库允许 `GITHUB_TOKEN` 直接 push 到 `main`，并已授予 `contents: write`
+- 如果 `main` 开启了必须走 PR、禁止 GitHub Actions 写入或其他分支保护限制，这个工作流将无法按设计直接提交
+- GitHub Actions 的 cron 使用 UTC 时区，`0 2 * * *` 表示每天 UTC 02:00 运行
 
 ## 安装器使用说明
 
@@ -74,9 +95,10 @@ uv run /path/to/this-repo/tools/push_skill.py --skill <skill-name> --source /pat
 
 ## skill-manager
 
-仓库中包含一个 `skill-manager` skill，用于告诉 AI 什么时候该调用下载器，什么时候该调用上传器。
+仓库中包含一个 `skill-manager` skill，用于告诉 AI 什么时候该调用下载器、bundle 同步器，什么时候该调用上传器。
 
 - `sync_skill.py` 成功后，会自动安装或更新当前项目中的 `.agents/skills/skill-manager/`
+- `sync_bundle.py` 成功后，也会自动安装或更新同一路径
 - `push_skill.py` 成功后也会自动安装或更新同一路径
 - 即使上传器遇到“内容无变化直接成功返回”的情况，也会同步 `skill-manager`
-- 两个脚本都会在本地 `skill-manager` 目录中写入 `repo-info.json`，用于记录这个 skills 仓库的本地路径和仓库 URL，供后续 AI 调用脚本时读取
+- 这三个脚本都会在本地 `skill-manager` 目录中写入 `repo-info.json`，用于记录这个 skills 仓库的本地路径和仓库 URL，供后续 AI 调用脚本时读取

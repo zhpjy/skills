@@ -1,0 +1,103 @@
+name: Sync Vendor
+
+"on":
+  workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-vendor-main
+  cancel-in-progress: false
+
+jobs:
+  sync-vendor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Sync vendor sources
+        run: uv run tools/sync_vendor.py --all
+
+      - name: Show git status
+        run: git status --short
+
+      - name: Detect vendor changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          result = subprocess.run(
+              ["git", "status", "--porcelain=v1", "-z"],
+              capture_output=True,
+              check=True,
+          )
+          entries = [entry for entry in result.stdout.split(b"\x00") if entry]
+          allowed_prefixes = ("vendor/", "registry/state/")
+          changed_paths: list[str] = []
+          unexpected_paths: list[str] = []
+
+          index = 0
+          while index < len(entries):
+              record = entries[index].decode("utf-8", "surrogateescape")
+              status = record[:2]
+              paths_to_check = [record[3:]]
+
+              if "R" in status or "C" in status:
+                  index += 1
+                  if index >= len(entries):
+                      raise RuntimeError(
+                          "git status --porcelain output is missing the extra path for a rename/copy record"
+                      )
+                  paths_to_check.append(
+                      entries[index].decode("utf-8", "surrogateescape")
+                  )
+
+              if all(path.startswith(allowed_prefixes) for path in paths_to_check):
+                  changed_paths.extend(paths_to_check)
+              else:
+                  unexpected_paths.extend(
+                      path
+                      for path in paths_to_check
+                      if not path.startswith(allowed_prefixes)
+                  )
+
+              index += 1
+
+          if unexpected_paths:
+              print("Unexpected changes outside vendor/ or registry/state/:", file=sys.stderr)
+              for path in unexpected_paths:
+                  print(path, file=sys.stderr)
+              sys.exit(1)
+
+          github_output = os.environ["GITHUB_OUTPUT"]
+          with open(github_output, "a", encoding="utf-8") as handle:
+              handle.write(
+                  f"has_changes={'true' if changed_paths else 'false'}\n"
+              )
+          PY
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- vendor registry/state
+          git commit -m "chore: sync vendor"
+          git pull --rebase origin main
+          git push origin HEAD:main
