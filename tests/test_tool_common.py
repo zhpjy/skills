@@ -79,6 +79,19 @@ class ToolCommonTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "git not-a-command failed"):
                 common.run_git(["not-a-command"], cwd=repo_root)
 
+    def test_run_git_disables_terminal_prompts(self) -> None:
+        completed = common.subprocess.CompletedProcess(
+            args=["git", "status"],
+            returncode=0,
+            stdout="ok\n",
+            stderr="",
+        )
+
+        with mock.patch.object(common.subprocess, "run", return_value=completed) as run_mock:
+            common.run_git(["status"], cwd=Path("/tmp/repo"))
+
+        self.assertEqual(run_mock.call_args.kwargs["env"]["GIT_TERMINAL_PROMPT"], "0")
+
     def test_write_repo_info_writes_expected_json(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             skill_dir = Path(temp_dir)

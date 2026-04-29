@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,12 +24,17 @@ def validate_skill_name(skill_name: str) -> None:
         )
 
 
-def replace_directory(source_dir: Path, target_dir: Path) -> Path:
+def replace_directory(
+    source_dir: Path,
+    target_dir: Path,
+    *,
+    symlinks: bool = False,
+) -> Path:
     target_dir.parent.mkdir(parents=True, exist_ok=True)
     staged_dir = target_dir.parent / f".{target_dir.name}.tmp-{uuid4().hex}"
     backup_dir = target_dir.parent / f".{target_dir.name}.bak-{uuid4().hex}"
 
-    shutil.copytree(source_dir, staged_dir)
+    shutil.copytree(source_dir, staged_dir, symlinks=symlinks)
 
     replaced_existing = False
     try:
@@ -45,15 +51,20 @@ def replace_directory(source_dir: Path, target_dir: Path) -> Path:
         raise
 
     if backup_dir.exists():
-        shutil.rmtree(backup_dir)
+        shutil.rmtree(backup_dir, ignore_errors=True)
 
     return target_dir
 
 
 def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    env = {
+        **os.environ,
+        "GIT_TERMINAL_PROMPT": "0",
+    }
     result = subprocess.run(
         ["git", *args],
         cwd=cwd,
+        env=env,
         capture_output=True,
         text=True,
         check=False,
