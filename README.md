@@ -4,7 +4,7 @@
 
 这是一个用于管理技能相关内容的仓库。
 
-## 目录结构
+## 目录与内容
 
 ```text
 .
@@ -16,18 +16,14 @@
 `-- tools/
 ```
 
-其中，`skills/` 目录用于存放 skill，`tools/` 目录用于存放工具。
-
-## 新架构概览
-
-为后续扩展安装与同步能力，仓库新增了一层分层的 registry 结构：
+当前仓库中：
 
 - `registry/sources/`：存放来源配置，描述每个来源的上游位置与同步目标。
 - `registry/state/`：存放来源状态，记录本地同步后的基础结果与时间信息。
 - `bundles/`：存放面向不同 agent 的清单文件，用来声明一组可安装技能。
+- `skills/`：存放自有 skill。
 - `vendor/`：存放同步到本地的外部 skill 内容。
-
-当前已加入 `superpowers` 的 source/state 元数据，以及一个面向 Codex 的显式 `superpowers-codex` bundle 清单，用于支撑项目级能力启用。
+- `tools/`：存放项目级安装、上传、bundle 启用和 vendor 同步的相关脚本。
 
 ## vendor 自动同步
 
