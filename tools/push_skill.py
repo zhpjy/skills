@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import filecmp
 import sys
 import tempfile
 from pathlib import Path
@@ -57,22 +56,12 @@ def get_origin_url(repo_root: Path) -> str:
     return result.stdout.strip()
 
 
-def directories_equal(left: Path, right: Path) -> bool:
-    comparison = filecmp.dircmp(left, right)
-    if comparison.left_only or comparison.right_only or comparison.funny_files:
-        return False
-    _, mismatched, errors = filecmp.cmpfiles(
-        left,
-        right,
-        comparison.common_files,
-        shallow=False,
+def has_staged_skill_changes(clone_dir: Path, skill_name: str) -> bool:
+    result = run_git(
+        ["diff", "--cached", "--name-only", "--", f"skills/{skill_name}"],
+        cwd=clone_dir,
     )
-    if mismatched or errors:
-        return False
-    return all(
-        directories_equal(left / common_dir, right / common_dir)
-        for common_dir in comparison.common_dirs
-    )
+    return bool(result.stdout.strip())
 
 
 def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
@@ -85,14 +74,14 @@ def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
         run_git(["clone", "--depth=1", origin_url, str(clone_dir)], cwd=repo_root)
 
         target_dir = clone_dir / "skills" / skill_name
-        if target_dir.exists() and directories_equal(source_dir, target_dir):
+        replace_directory(source_dir, target_dir)
+
+        run_git(["add", f"skills/{skill_name}"], cwd=clone_dir)
+        if not has_staged_skill_changes(clone_dir, skill_name):
             sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
             print(f"No changes for skill '{skill_name}'.")
             return
 
-        replace_directory(source_dir, target_dir)
-
-        run_git(["add", f"skills/{skill_name}"], cwd=clone_dir)
         run_git(["commit", "-m", f"Update skill: {skill_name}"], cwd=clone_dir)
         run_git(["push"], cwd=clone_dir)
         sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
