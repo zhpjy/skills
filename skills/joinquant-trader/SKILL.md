@@ -43,6 +43,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py directory cr
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py directory delete --id <directory-id> --parent-id 0 --confirm-delete
 
 # 回测
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile --strategy-id <strategy-id> --start-date 2025-01-01 --end-date 2026-05-01
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run --strategy-id <strategy-id> --start-date 2025-01-01 --end-date 2026-05-01
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest detail --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest logs --backtest-id <backtest-id>
@@ -65,6 +66,14 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 - 默认筛选参数可直接使用：`category-id=0`、`universe-type=zz500`、`time-range=3y`、`commision-fee=0`、`skip-paused=1`。
 - `factor detail` 默认只聚合轻量结果：基础信息、绩效摘要、极值股票列表。需要完整曲线时再加 `--include-series`，或分别调用 `daily-stats`、`ic`、`turnovers`。
 - 对因子排序或初筛时，优先看 `annual_ex_return_1q`、`sharpe_1q`、`max_drawdown_1q`、`ic_mean`、`ir`、`good_ic`、`turnover_mean_1q`，并说明筛选参数。
+
+## 编译与回测工作流
+
+- 修改策略后，先调用 `backtest compile`，不要直接跑完整回测。
+- 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。
+- 只有 `compiled=true` 后才执行 `backtest run`。
+- `backtest run` 自身也会先执行一次编译门禁；编译失败时会返回 `backtest_id=null` 和 `compile.errors`，不会发起正式回测。
+- 编译接口来自 HAR 观察到的 `POST /algorithm/index/build?ajax=1`，其中 `backtest[type]=1`；正式回测仍使用 `backtest[type]=0`。
 
 ## 安全边界
 

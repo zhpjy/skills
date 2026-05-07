@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import base64
 import re
+import time
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
@@ -21,6 +22,93 @@ class BacktestService:
         capital: str,
         frequency: str,
     ) -> dict[str, Any]:
+        compile_result = self.compile_strategy(strategy_id, start_date, end_date, capital, frequency)
+        if not compile_result.get("compiled"):
+            return {"backtest_id": None, "compile": compile_result, "warnings": ["compile_failed"]}
+        return self._build_backtest(strategy_id, start_date, end_date, capital, frequency)
+
+    def compile_strategy(
+        self,
+        strategy_id: str,
+        start_date: str,
+        end_date: str,
+        capital: str,
+        frequency: str,
+        *,
+        max_polls: int = 12,
+        poll_interval: float = 1.0,
+    ) -> dict[str, Any]:
+        build_result = self._build_backtest(
+            strategy_id,
+            start_date,
+            end_date,
+            capital,
+            frequency,
+            backtest_type="1",
+        )
+        backtest_id = build_result.get("backtest_id")
+        if not backtest_id:
+            return {
+                "compiled": False,
+                "backtest_id": None,
+                "errors": ["compile_backtest_id_not_found"],
+                "raw": build_result.get("raw"),
+            }
+
+        last_result: dict[str, Any] | None = None
+        last_errors: dict[str, Any] | None = None
+        for attempt in range(max(1, max_polls)):
+            last_errors = self.get_errors(backtest_id)
+            errors = _extract_logs(last_errors.get("raw"))
+            error_state = _state_from_raw(last_errors.get("raw"))
+            if errors or error_state == "3":
+                return {
+                    "compiled": False,
+                    "backtest_id": backtest_id,
+                    "state": error_state,
+                    "errors": errors,
+                    "attempts": attempt + 1,
+                }
+
+            last_result = self.get_result(backtest_id)
+            result_state = _state_from_raw(last_result.get("raw")) or last_result.get("status")
+            if result_state == "3":
+                return {
+                    "compiled": False,
+                    "backtest_id": backtest_id,
+                    "state": result_state,
+                    "errors": errors,
+                    "attempts": attempt + 1,
+                }
+            if result_state and result_state != "0":
+                return {
+                    "compiled": True,
+                    "backtest_id": backtest_id,
+                    "state": result_state,
+                    "attempts": attempt + 1,
+                }
+            if attempt + 1 < max_polls and poll_interval > 0:
+                time.sleep(poll_interval)
+
+        return {
+            "compiled": False,
+            "backtest_id": backtest_id,
+            "state": _state_from_raw(last_result.get("raw")) if last_result else None,
+            "errors": _extract_logs(last_errors.get("raw")) if last_errors else [],
+            "attempts": max_polls,
+            "warnings": ["compile_timeout"],
+        }
+
+    def _build_backtest(
+        self,
+        strategy_id: str,
+        start_date: str,
+        end_date: str,
+        capital: str,
+        frequency: str,
+        *,
+        backtest_type: str = "0",
+    ) -> dict[str, Any]:
         strategy = self.strategy_service.get_strategy(strategy_id)
         payload = build_backtest_payload(
             strategy,
@@ -28,6 +116,7 @@ class BacktestService:
             end_date=end_date,
             capital=capital,
             frequency=frequency,
+            backtest_type=backtest_type,
             token=self.token_provider() or _metadata_value(strategy, "token"),
         )
         response = self.http_client.post_form(
@@ -71,7 +160,9 @@ class BacktestService:
         return self._json_endpoint("/algorithm/backtest/transactionInfo", backtest_id)
 
     def get_errors(self, backtest_id: str) -> dict[str, Any]:
-        return self._json_endpoint("/algorithm/backtest/error", backtest_id)
+        response = self._post_backtest("/algorithm/backtest/error", backtest_id, params={"offset": 0})
+        raw = response.json_or_none()
+        return {"backtest_id": backtest_id, "raw": raw if raw is not None else response.text}
 
     def get_logs(self, backtest_id: str, offset: int = 0) -> dict[str, Any]:
         response = self._post_backtest("/algorithm/backtest/log", backtest_id, params={"offset": offset})
@@ -141,13 +232,14 @@ def build_backtest_payload(
     capital: str,
     frequency: str,
     token: str | None,
+    backtest_type: str = "0",
 ) -> dict[str, str]:
     metadata = strategy.get("metadata") if isinstance(strategy.get("metadata"), dict) else {}
     return {
         "algorithm[algorithmId]": str(strategy.get("id") or ""),
         "algorithm[userId]": str(metadata.get("userId") or metadata.get("user_id") or ""),
         "algorithm[accessControl]": str(metadata.get("accessControl") or metadata.get("access_control") or "0"),
-        "backtest[type]": "0",
+        "backtest[type]": backtest_type,
         "algorithm[name]": str(strategy.get("name") or ""),
         "fontpref": str(metadata.get("fontpref") or "14px"),
         "themepref": str(metadata.get("themepref") or "default"),
@@ -308,12 +400,23 @@ def _extract_logs(value: Any) -> list[Any]:
                 current = value[key]
                 return current if isinstance(current, list) else [current]
         for child in value.values():
-            logs = _extract_logs(child)
-            if logs:
-                return logs
-    if isinstance(value, str) and value.strip():
-        return [value]
+            if isinstance(child, (dict, list)):
+                logs = _extract_logs(child)
+                if logs:
+                    return logs
+    if isinstance(value, list):
+        for child in value:
+            if isinstance(child, (dict, list)):
+                logs = _extract_logs(child)
+                if logs:
+                    return logs
     return []
+
+
+def _state_from_raw(value: Any) -> str | None:
+    data = _data_dict(value)
+    state = data.get("state") or data.get("status")
+    return str(state) if state is not None else None
 
 
 def _data_dict(value: Any) -> dict[str, Any]:

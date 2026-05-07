@@ -61,6 +61,25 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.capital, "100000")
         self.assertEqual(args.frequency, "day")
 
+    def test_backtest_compile_parser(self):
+        args = build_parser().parse_args(
+            [
+                "backtest",
+                "compile",
+                "--strategy-id",
+                "123",
+                "--start-date",
+                "2025-01-01",
+                "--end-date",
+                "2025-01-31",
+            ]
+        )
+        self.assertEqual(args.resource, "backtest")
+        self.assertEqual(args.action, "compile")
+        self.assertEqual(args.strategy_id, "123")
+        self.assertEqual(args.capital, "100000")
+        self.assertEqual(args.frequency, "day")
+
     def test_backtest_detail_parser(self):
         args = build_parser().parse_args(["backtest", "detail", "--backtest-id", "bt1"])
         self.assertEqual(args.resource, "backtest")

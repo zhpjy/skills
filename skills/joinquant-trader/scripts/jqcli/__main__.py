@@ -63,6 +63,12 @@ def build_parser() -> argparse.ArgumentParser:
     backtest_run.add_argument("--end-date", required=True)
     backtest_run.add_argument("--capital", default="100000")
     backtest_run.add_argument("--frequency", default="day")
+    backtest_compile = backtest_subparsers.add_parser("compile")
+    backtest_compile.add_argument("--strategy-id", required=True)
+    backtest_compile.add_argument("--start-date", required=True)
+    backtest_compile.add_argument("--end-date", required=True)
+    backtest_compile.add_argument("--capital", default="100000")
+    backtest_compile.add_argument("--frequency", default="day")
     for action in ("status", "result", "stats", "risk", "positions", "transactions", "errors", "detail"):
         command = backtest_subparsers.add_parser(action)
         command.add_argument("--backtest-id", required=True)
@@ -244,6 +250,16 @@ def dispatch(args, context):
         if args.action == "run":
             return success_response(
                 context["backtest"].run_backtest(
+                    args.strategy_id,
+                    args.start_date,
+                    args.end_date,
+                    args.capital,
+                    args.frequency,
+                )
+            )
+        if args.action == "compile":
+            return success_response(
+                context["backtest"].compile_strategy(
                     args.strategy_id,
                     args.start_date,
                     args.end_date,
