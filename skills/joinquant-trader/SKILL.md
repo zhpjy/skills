@@ -47,7 +47,24 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest detail --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest logs --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest errors --backtest-id <backtest-id>
+
+# 因子看板
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor list --category-id 0 --universe-type hs300 --time-range 3y --commision-fee 8 --skip-paused 0
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor detail --id <factor-id> --universe-type hs300 --time-range 3y --commision-fee 8 --skip-paused 0
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor performance --id <factor-id> --universe-type zz500 --time-range 1y --commision-fee 0 --skip-paused 1
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor daily-stats --id <factor-id> --side long --universe-type zz500 --time-range 1y --commision-fee 0 --skip-paused 1
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor ic --id <factor-id> --universe-type zz500 --time-range 1y --skip-paused 1
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor turnovers --id <factor-id> --side long --universe-type zz500 --time-range 1y --commision-fee 0 --skip-paused 1
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stocks --id <factor-id> --universe-type zz500
 ```
+
+## 因子工作流
+
+- 常规查询直接用 `factor list` 和 `factor detail`，不要每次都先查元数据。
+- 只有当用户要查看可选参数、按分类查找、或参数校验失败时，才调用 `factor settings` / `factor categories`。
+- 默认筛选参数可直接使用：`category-id=0`、`universe-type=zz500`、`time-range=3y`、`commision-fee=0`、`skip-paused=1`。
+- `factor detail` 默认只聚合轻量结果：基础信息、绩效摘要、极值股票列表。需要完整曲线时再加 `--include-series`，或分别调用 `daily-stats`、`ic`、`turnovers`。
+- 对因子排序或初筛时，优先看 `annual_ex_return_1q`、`sharpe_1q`、`max_drawdown_1q`、`ic_mean`、`ir`、`good_ic`、`turnover_mean_1q`，并说明筛选参数。
 
 ## 安全边界
 
@@ -55,6 +72,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest err
 - 不要输出 `.env`、cookie、token、session 文件内容。
 - 写策略前先读取远端策略，确认目标 `strategy-id` 正确。
 - 回测评价优先用 `backtest detail`，需要原始明细时再调用 `stats/risk/positions/transactions/logs/errors`。
+- 因子大曲线输出可能很长，除非用户要求画图或时间序列分析，否则不要默认拉取或完整展示。
 
 ## 验证
 

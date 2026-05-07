@@ -6,6 +6,7 @@ from pathlib import Path
 from jqcli.auth import AuthError, AuthService, JoinQuantAuthClient
 from jqcli.backtest import BacktestService
 from jqcli.config import ConfigError, load_config
+from jqcli.factor import FactorService
 from jqcli.http import JoinQuantHttpClient
 from jqcli.output import error_response, print_json
 from jqcli.session import load_session, save_session
@@ -68,6 +69,34 @@ def build_parser() -> argparse.ArgumentParser:
     logs = backtest_subparsers.add_parser("logs")
     logs.add_argument("--backtest-id", required=True)
     logs.add_argument("--offset", type=int, default=0)
+
+    factor = subparsers.add_parser("factor")
+    factor_subparsers = factor.add_subparsers(dest="action")
+    factor_subparsers.add_parser("settings")
+    factor_subparsers.add_parser("categories")
+    factor_list = factor_subparsers.add_parser("list")
+    _add_factor_list_args(factor_list)
+    factor_info = factor_subparsers.add_parser("info")
+    factor_info.add_argument("--id", required=True, dest="factor_id")
+    factor_detail = factor_subparsers.add_parser("detail")
+    factor_detail.add_argument("--id", required=True, dest="factor_id")
+    _add_factor_analysis_args(factor_detail, include_commision=True, include_side=True)
+    factor_detail.add_argument("--include-series", action="store_true")
+    factor_performance = factor_subparsers.add_parser("performance")
+    factor_performance.add_argument("--id", required=True, dest="factor_id")
+    _add_factor_analysis_args(factor_performance, include_commision=True)
+    factor_daily = factor_subparsers.add_parser("daily-stats")
+    factor_daily.add_argument("--id", required=True, dest="factor_id")
+    _add_factor_analysis_args(factor_daily, include_commision=True, include_side=True)
+    factor_ic = factor_subparsers.add_parser("ic")
+    factor_ic.add_argument("--id", required=True, dest="factor_id")
+    _add_factor_analysis_args(factor_ic, include_commision=False)
+    factor_turnovers = factor_subparsers.add_parser("turnovers")
+    factor_turnovers.add_argument("--id", required=True, dest="factor_id")
+    _add_factor_analysis_args(factor_turnovers, include_commision=True, include_side=True)
+    factor_stocks = factor_subparsers.add_parser("stocks")
+    factor_stocks.add_argument("--id", required=True, dest="factor_id")
+    factor_stocks.add_argument("--universe-type", default="zz500")
     return parser
 
 
@@ -83,6 +112,32 @@ def _add_strategy_backtest_defaults(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--capital", default="100000")
     parser.add_argument("--frequency", default="day")
     parser.add_argument("--type", default="stock", dest="strategy_type")
+
+
+def _add_factor_list_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--category-id", default="0")
+    parser.add_argument("--universe-type", default="zz500")
+    parser.add_argument("--time-range", default="3y")
+    parser.add_argument("--commision-fee", default="0")
+    parser.add_argument("--skip-paused", default="1")
+
+
+def _add_factor_analysis_args(
+    parser: argparse.ArgumentParser,
+    *,
+    include_commision: bool,
+    include_side: bool = False,
+) -> None:
+    parser.add_argument("--universe-type", default="zz500")
+    parser.add_argument("--time-range", default="3y")
+    if include_commision:
+        parser.add_argument("--commision-fee", default="0")
+    parser.add_argument("--skip-paused", default="1")
+    if include_side:
+        parser.add_argument("--side", default="long")
+    parser.add_argument("--turnover-period")
+    parser.add_argument("--delay")
+    parser.add_argument("--turnover-time")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -125,6 +180,7 @@ def build_context():
         "auth": auth_service,
         "strategy": strategy_service,
         "backtest": BacktestService(http_client, strategy_service, token_provider=token_provider),
+        "factor": FactorService(http_client),
     }
 
 
@@ -213,6 +269,94 @@ def dispatch(args, context):
             return success_response(context["backtest"].get_logs(args.backtest_id, offset=args.offset))
         if args.action == "detail":
             return success_response(context["backtest"].get_detail(args.backtest_id))
+    if args.resource == "factor":
+        context["auth"].ensure_session()
+        if args.action == "settings":
+            return success_response(context["factor"].get_settings())
+        if args.action == "categories":
+            return success_response(context["factor"].list_categories())
+        if args.action == "list":
+            return success_response(
+                context["factor"].list_factors(
+                    category_id=args.category_id,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    commision_fee=args.commision_fee,
+                    skip_paused=args.skip_paused,
+                )
+            )
+        if args.action == "info":
+            return success_response(context["factor"].get_info(args.factor_id))
+        if args.action == "performance":
+            return success_response(
+                context["factor"].get_performance(
+                    factor_id=args.factor_id,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    commision_fee=args.commision_fee,
+                    skip_paused=args.skip_paused,
+                    turnover_period=args.turnover_period,
+                    delay=args.delay,
+                    turnover_time=args.turnover_time,
+                )
+            )
+        if args.action == "daily-stats":
+            return success_response(
+                context["factor"].get_daily_stats(
+                    factor_id=args.factor_id,
+                    side=args.side,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    commision_fee=args.commision_fee,
+                    skip_paused=args.skip_paused,
+                    turnover_period=args.turnover_period,
+                    delay=args.delay,
+                    turnover_time=args.turnover_time,
+                )
+            )
+        if args.action == "ic":
+            return success_response(
+                context["factor"].get_ic(
+                    factor_id=args.factor_id,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    skip_paused=args.skip_paused,
+                    turnover_period=args.turnover_period,
+                    delay=args.delay,
+                    turnover_time=args.turnover_time,
+                )
+            )
+        if args.action == "turnovers":
+            return success_response(
+                context["factor"].get_turnovers(
+                    factor_id=args.factor_id,
+                    side=args.side,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    commision_fee=args.commision_fee,
+                    skip_paused=args.skip_paused,
+                    turnover_period=args.turnover_period,
+                    delay=args.delay,
+                    turnover_time=args.turnover_time,
+                )
+            )
+        if args.action == "stocks":
+            return success_response(context["factor"].get_stock_list(factor_id=args.factor_id, universe_type=args.universe_type))
+        if args.action == "detail":
+            return success_response(
+                context["factor"].get_detail(
+                    factor_id=args.factor_id,
+                    universe_type=args.universe_type,
+                    time_range=args.time_range,
+                    commision_fee=args.commision_fee,
+                    skip_paused=args.skip_paused,
+                    side=args.side,
+                    turnover_period=args.turnover_period,
+                    delay=args.delay,
+                    turnover_time=args.turnover_time,
+                    include_series=args.include_series,
+                )
+            )
     return error_response("COMMAND_UNSUPPORTED", "Command is not implemented yet")
 
 
