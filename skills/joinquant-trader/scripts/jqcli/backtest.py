@@ -6,6 +6,7 @@ import re
 import time
 from typing import Any
 from urllib.parse import parse_qs, urlparse
+from jqcli.output import compact_value, summarize_list
 
 
 class BacktestService:
@@ -58,7 +59,7 @@ class BacktestService:
         last_result: dict[str, Any] | None = None
         last_errors: dict[str, Any] | None = None
         for attempt in range(max(1, max_polls)):
-            last_errors = self.get_errors(backtest_id)
+            last_errors = self.get_errors(backtest_id, full=True)
             errors = _extract_logs(last_errors.get("raw"))
             error_state = _state_from_raw(last_errors.get("raw"))
             if errors or error_state == "3":
@@ -147,37 +148,68 @@ class BacktestService:
         parsed["backtest_id"] = backtest_id
         return parsed
 
-    def get_stats(self, backtest_id: str) -> dict[str, Any]:
-        return self._json_endpoint("/algorithm/backtest/stats", backtest_id)
+    def get_stats(self, backtest_id: str, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
+        payload = self._json_endpoint("/algorithm/backtest/stats", backtest_id)
+        if full:
+            return payload
+        return {
+            "backtest_id": backtest_id,
+            "summary": compact_value(_data_dict(payload.get("raw")), sample_size=sample_size),
+            "full_available": True,
+        }
 
-    def get_risk(self, backtest_id: str) -> dict[str, Any]:
-        return self._json_endpoint("/algorithm/backtest/risk", backtest_id)
+    def get_risk(self, backtest_id: str, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
+        payload = self._json_endpoint("/algorithm/backtest/risk", backtest_id)
+        if full:
+            return payload
+        return {
+            "backtest_id": backtest_id,
+            "summary": compact_value(_data_dict(payload.get("raw")), sample_size=sample_size),
+            "full_available": True,
+        }
 
-    def get_positions(self, backtest_id: str) -> dict[str, Any]:
-        return self._json_endpoint("/algorithm/backtest/positionInfo", backtest_id)
+    def get_positions(self, backtest_id: str, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
+        payload = self._json_endpoint("/algorithm/backtest/positionInfo", backtest_id)
+        if full:
+            return payload
+        return _summarize_backtest_items(payload.get("raw"), backtest_id=backtest_id, key="position", sample_size=sample_size)
 
-    def get_transactions(self, backtest_id: str) -> dict[str, Any]:
-        return self._json_endpoint("/algorithm/backtest/transactionInfo", backtest_id)
+    def get_transactions(self, backtest_id: str, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
+        payload = self._json_endpoint("/algorithm/backtest/transactionInfo", backtest_id)
+        if full:
+            return payload
+        return _summarize_backtest_items(
+            payload.get("raw"),
+            backtest_id=backtest_id,
+            key="transaction",
+            sample_size=sample_size,
+        )
 
-    def get_errors(self, backtest_id: str) -> dict[str, Any]:
+    def get_errors(self, backtest_id: str, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
         response = self._post_backtest("/algorithm/backtest/error", backtest_id, params={"offset": 0})
         raw = response.json_or_none()
-        return {"backtest_id": backtest_id, "raw": raw if raw is not None else response.text}
+        payload = {"backtest_id": backtest_id, "raw": raw if raw is not None else response.text}
+        if full:
+            return payload
+        return _summarize_backtest_logs(payload["raw"], backtest_id=backtest_id, sample_size=sample_size)
 
-    def get_logs(self, backtest_id: str, offset: int = 0) -> dict[str, Any]:
+    def get_logs(self, backtest_id: str, offset: int = 0, *, full: bool = False, sample_size: int = 5) -> dict[str, Any]:
         response = self._post_backtest("/algorithm/backtest/log", backtest_id, params={"offset": offset})
         raw = response.json_or_none()
         logs = _extract_logs(raw)
-        return {"backtest_id": backtest_id, "logs": logs, "raw": raw if raw is not None else response.text}
+        payload = {"backtest_id": backtest_id, "logs": logs, "raw": raw if raw is not None else response.text}
+        if full:
+            return payload
+        return _summarize_backtest_logs(payload["raw"], backtest_id=backtest_id, sample_size=sample_size)
 
     def get_detail(self, backtest_id: str) -> dict[str, Any]:
         status = self.get_status(backtest_id)
         result = self.get_result(backtest_id)
-        stats = self.get_stats(backtest_id)
-        positions = self.get_positions(backtest_id)
-        transactions = self.get_transactions(backtest_id)
-        logs = self.get_logs(backtest_id)
-        errors = self.get_errors(backtest_id)
+        stats = self.get_stats(backtest_id, full=True)
+        positions = self.get_positions(backtest_id, full=True)
+        transactions = self.get_transactions(backtest_id, full=True)
+        logs = self.get_logs(backtest_id, full=True)
+        errors = self.get_errors(backtest_id, full=True)
         return {
             "backtest_id": backtest_id,
             "summary": summarize_backtest_detail(
@@ -442,3 +474,31 @@ def _json_or_none(text: str) -> Any | None:
 def _json_or_text(text: str) -> Any:
     parsed = _json_or_none(text)
     return parsed if parsed is not None else text
+
+
+def _summarize_backtest_logs(raw: Any, *, backtest_id: str, sample_size: int) -> dict[str, Any]:
+    data = _data_dict(raw)
+    summary = summarize_list(_extract_logs(raw), sample_size=sample_size)
+    payload = {
+        "backtest_id": backtest_id,
+        "count": summary["count"],
+        "sample": summary["sample"],
+        "truncated": summary["truncated"],
+        "full_available": True,
+    }
+    if "offset" in data:
+        payload["offset"] = data.get("offset")
+    if "max" in data:
+        payload["max"] = data.get("max")
+    return payload
+
+
+def _summarize_backtest_items(raw: Any, *, backtest_id: str, key: str, sample_size: int) -> dict[str, Any]:
+    summary = summarize_list(_data_dict(raw).get(key), sample_size=sample_size)
+    return {
+        "backtest_id": backtest_id,
+        "count": summary["count"],
+        "sample": summary["sample"],
+        "truncated": summary["truncated"],
+        "full_available": True,
+    }

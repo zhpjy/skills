@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from jqcli.output import summarize_list
 
 
 class FactorService:
@@ -23,6 +24,8 @@ class FactorService:
         time_range: str | None = None,
         commision_fee: str | None = None,
         skip_paused: str | None = None,
+        full: bool = False,
+        sample_size: int = 5,
     ) -> dict[str, Any]:
         params = _clean_params(
             {
@@ -34,7 +37,22 @@ class FactorService:
             }
         )
         factors = _data(self.http_client.get("/factorlib/index/getList", params=params).text)
-        return {"factors": factors, "count": len(factors) if isinstance(factors, list) else None}
+        if full or not isinstance(factors, list):
+            return {"factors": factors, "count": len(factors) if isinstance(factors, list) else None}
+        sample = summarize_list(factors, sample_size=sample_size, item_mapper=_summarize_factor_item)
+        return {
+            "count": len(factors),
+            "filters": {
+                "category_id": category_id,
+                "universe_type": universe_type,
+                "time_range": time_range,
+                "commision_fee": commision_fee,
+                "skip_paused": skip_paused,
+            },
+            "sample": sample["sample"],
+            "truncated": sample["truncated"],
+            "full_available": True,
+        }
 
     def get_info(self, factor_id: str) -> dict[str, Any]:
         return _data(
@@ -162,13 +180,23 @@ class FactorService:
             ).text
         )
 
-    def get_stock_list(self, *, factor_id: str, universe_type: str) -> dict[str, Any]:
-        return _data(
+    def get_stock_list(
+        self,
+        *,
+        factor_id: str,
+        universe_type: str,
+        full: bool = False,
+        sample_size: int = 5,
+    ) -> dict[str, Any]:
+        payload = _data(
             self.http_client.get(
                 "/factorlib/index/getFactorStockList",
                 params={"id": factor_id, "universeType": universe_type, "isFactorShare": "0"},
             ).text
         )
+        if full or not isinstance(payload, dict):
+            return payload
+        return _summarize_stock_list(payload, sample_size=sample_size)
 
     def get_detail(
         self,
@@ -183,6 +211,8 @@ class FactorService:
         delay: str | None = None,
         turnover_time: str | None = None,
         include_series: bool = False,
+        full: bool = False,
+        sample_size: int = 5,
     ) -> dict[str, Any]:
         detail = {
             "id": factor_id,
@@ -207,7 +237,12 @@ class FactorService:
                 delay=delay,
                 turnover_time=turnover_time,
             ),
-            "stock_list": self.get_stock_list(factor_id=factor_id, universe_type=universe_type),
+            "stock_list": self.get_stock_list(
+                factor_id=factor_id,
+                universe_type=universe_type,
+                full=full,
+                sample_size=sample_size,
+            ),
         }
         if include_series:
             detail["daily_stats"] = self.get_daily_stats(
@@ -286,3 +321,32 @@ def _json_or_text(text: str) -> Any:
 
 def _clean_params(params: dict[str, Any]) -> dict[str, str]:
     return {key: str(value) for key, value in params.items() if value not in (None, "")}
+
+
+def _summarize_factor_item(item: Any) -> Any:
+    if not isinstance(item, dict):
+        return item
+    preferred_keys = (
+        "factor_id",
+        "id",
+        "name",
+        "display_name",
+        "annual_ex_return_1q",
+        "sharpe_1q",
+        "max_drawdown_1q",
+        "ic_mean",
+        "ir",
+        "good_ic",
+        "turnover_mean_1q",
+    )
+    summary = {key: item[key] for key in preferred_keys if key in item}
+    return summary or item
+
+
+def _summarize_stock_list(payload: dict[str, Any], *, sample_size: int) -> dict[str, Any]:
+    return {
+        "update_date": payload.get("updateDate"),
+        "largest": summarize_list(payload.get("largest"), sample_size=sample_size),
+        "smallest": summarize_list(payload.get("smallest"), sample_size=sample_size),
+        "full_available": True,
+    }

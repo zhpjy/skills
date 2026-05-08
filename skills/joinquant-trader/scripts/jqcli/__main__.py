@@ -74,9 +74,12 @@ def build_parser() -> argparse.ArgumentParser:
     for action in ("status", "result", "stats", "risk", "positions", "transactions", "errors", "detail"):
         command = backtest_subparsers.add_parser(action)
         command.add_argument("--backtest-id", required=True)
+        if action in {"stats", "risk", "positions", "transactions", "errors"}:
+            command.add_argument("--full", action="store_true")
     logs = backtest_subparsers.add_parser("logs")
     logs.add_argument("--backtest-id", required=True)
     logs.add_argument("--offset", type=int, default=0)
+    logs.add_argument("--full", action="store_true")
 
     factor = subparsers.add_parser("factor")
     factor_subparsers = factor.add_subparsers(dest="action")
@@ -84,12 +87,14 @@ def build_parser() -> argparse.ArgumentParser:
     factor_subparsers.add_parser("categories")
     factor_list = factor_subparsers.add_parser("list")
     _add_factor_list_args(factor_list)
+    factor_list.add_argument("--full", action="store_true")
     factor_info = factor_subparsers.add_parser("info")
     factor_info.add_argument("--id", required=True, dest="factor_id")
     factor_detail = factor_subparsers.add_parser("detail")
     factor_detail.add_argument("--id", required=True, dest="factor_id")
     _add_factor_analysis_args(factor_detail, include_commision=True, include_side=True)
     factor_detail.add_argument("--include-series", action="store_true")
+    factor_detail.add_argument("--full", action="store_true")
     factor_performance = factor_subparsers.add_parser("performance")
     factor_performance.add_argument("--id", required=True, dest="factor_id")
     _add_factor_analysis_args(factor_performance, include_commision=True)
@@ -105,6 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     factor_stocks = factor_subparsers.add_parser("stocks")
     factor_stocks.add_argument("--id", required=True, dest="factor_id")
     factor_stocks.add_argument("--universe-type", default="zz500")
+    factor_stocks.add_argument("--full", action="store_true")
     return parser
 
 
@@ -275,17 +281,17 @@ def dispatch(args, context):
         if args.action == "result":
             return success_response(context["backtest"].get_result(args.backtest_id))
         if args.action == "stats":
-            return success_response(context["backtest"].get_stats(args.backtest_id))
+            return success_response(context["backtest"].get_stats(args.backtest_id, full=args.full))
         if args.action == "risk":
-            return success_response(context["backtest"].get_risk(args.backtest_id))
+            return success_response(context["backtest"].get_risk(args.backtest_id, full=args.full))
         if args.action == "positions":
-            return success_response(context["backtest"].get_positions(args.backtest_id))
+            return success_response(context["backtest"].get_positions(args.backtest_id, full=args.full))
         if args.action == "transactions":
-            return success_response(context["backtest"].get_transactions(args.backtest_id))
+            return success_response(context["backtest"].get_transactions(args.backtest_id, full=args.full))
         if args.action == "errors":
-            return success_response(context["backtest"].get_errors(args.backtest_id))
+            return success_response(context["backtest"].get_errors(args.backtest_id, full=args.full))
         if args.action == "logs":
-            return success_response(context["backtest"].get_logs(args.backtest_id, offset=args.offset))
+            return success_response(context["backtest"].get_logs(args.backtest_id, offset=args.offset, full=args.full))
         if args.action == "detail":
             return success_response(context["backtest"].get_detail(args.backtest_id))
     if args.resource == "factor":
@@ -302,6 +308,7 @@ def dispatch(args, context):
                     time_range=args.time_range,
                     commision_fee=args.commision_fee,
                     skip_paused=args.skip_paused,
+                    full=args.full,
                 )
             )
         if args.action == "info":
@@ -360,7 +367,13 @@ def dispatch(args, context):
                 )
             )
         if args.action == "stocks":
-            return success_response(context["factor"].get_stock_list(factor_id=args.factor_id, universe_type=args.universe_type))
+            return success_response(
+                context["factor"].get_stock_list(
+                    factor_id=args.factor_id,
+                    universe_type=args.universe_type,
+                    full=args.full,
+                )
+            )
         if args.action == "detail":
             return success_response(
                 context["factor"].get_detail(
@@ -374,6 +387,7 @@ def dispatch(args, context):
                     delay=args.delay,
                     turnover_time=args.turnover_time,
                     include_series=args.include_series,
+                    full=args.full,
                 )
             )
     return error_response("COMMAND_UNSUPPORTED", "Command is not implemented yet")

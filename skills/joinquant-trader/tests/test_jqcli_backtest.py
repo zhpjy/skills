@@ -124,9 +124,69 @@ class JqcliBacktestTest(unittest.TestCase):
 
         service = BacktestService(FakeHttpClient(), strategy_service=None, token_provider=lambda: "t")
         logs = service.get_logs("bt1")
-        self.assertEqual(logs["logs"], ["ok"])
+        self.assertEqual(logs["count"], 1)
+        self.assertEqual(logs["sample"], ["ok"])
+        self.assertEqual(logs["offset"], 1)
+        self.assertTrue(logs["full_available"])
         self.assertEqual(service.http_client.calls[0][0], "/algorithm/backtest/log")
         self.assertEqual(service.http_client.calls[0][2]["offset"], 0)
+
+    def test_backtest_logs_can_return_full_payload_when_requested(self):
+        class FakeHttpClient:
+            base_url = "https://www.joinquant.com"
+
+            def post_form(self, path, data, params=None, headers=None):
+                class Response:
+                    text = '{"data":{"logArr":["ok"],"offset":1,"max":true},"status":"0"}'
+
+                    def json_or_none(self):
+                        return {"data": {"logArr": ["ok"], "offset": 1, "max": True}, "status": "0"}
+
+                return Response()
+
+        service = BacktestService(FakeHttpClient(), strategy_service=None, token_provider=lambda: "t")
+        logs = service.get_logs("bt1", full=True)
+        self.assertEqual(logs["logs"], ["ok"])
+        self.assertIn("raw", logs)
+
+    def test_backtest_positions_are_compact_by_default(self):
+        class FakeHttpClient:
+            base_url = "https://www.joinquant.com"
+
+            def post_form(self, path, data, params=None, headers=None):
+                class Response:
+                    text = '{"data":{"position":[{"stock":"A"},{"stock":"B"}]}}'
+
+                    def json_or_none(self):
+                        return {"data": {"position": [{"stock": "A"}, {"stock": "B"}]}}
+
+                return Response()
+
+        service = BacktestService(FakeHttpClient(), strategy_service=None, token_provider=lambda: "t")
+        positions = service.get_positions("bt1")
+        self.assertEqual(positions["count"], 2)
+        self.assertEqual(positions["sample"][0]["stock"], "A")
+        self.assertTrue(positions["full_available"])
+
+    def test_backtest_stats_are_summarized_by_default(self):
+        class FakeHttpClient:
+            base_url = "https://www.joinquant.com"
+
+            def post_form(self, path, data, params=None, headers=None):
+                class Response:
+                    text = '{"data":{"sharpe":1.8,"max_drawdown":0.19,"series":[1,2,3]}}'
+
+                    def json_or_none(self):
+                        return {"data": {"sharpe": 1.8, "max_drawdown": 0.19, "series": [1, 2, 3]}}
+
+                return Response()
+
+        service = BacktestService(FakeHttpClient(), strategy_service=None, token_provider=lambda: "t")
+        stats = service.get_stats("bt1")
+        self.assertEqual(stats["summary"]["sharpe"], 1.8)
+        self.assertEqual(stats["summary"]["max_drawdown"], 0.19)
+        self.assertEqual(stats["summary"]["series"]["count"], 3)
+        self.assertTrue(stats["full_available"])
 
     def test_compile_strategy_uses_build_type_one_and_reports_errors(self):
         class FakeStrategyService:

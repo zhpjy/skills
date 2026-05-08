@@ -104,6 +104,11 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.action, "logs")
         self.assertEqual(args.offset, 100)
 
+    def test_backtest_logs_parser_supports_full(self):
+        args = build_parser().parse_args(["backtest", "logs", "--backtest-id", "bt1", "--full"])
+        self.assertEqual(args.action, "logs")
+        self.assertTrue(args.full)
+
     def test_factor_list_parser_supports_har_observed_filters(self):
         args = build_parser().parse_args(
             [
@@ -128,6 +133,11 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.time_range, "3y")
         self.assertEqual(args.commision_fee, "8")
         self.assertEqual(args.skip_paused, "0")
+
+    def test_factor_list_parser_supports_full(self):
+        args = build_parser().parse_args(["factor", "list", "--full"])
+        self.assertEqual(args.action, "list")
+        self.assertTrue(args.full)
 
     def test_factor_detail_parser_supports_analysis_filters(self):
         args = build_parser().parse_args(
@@ -156,6 +166,11 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.skip_paused, "1")
         self.assertTrue(args.include_series)
 
+    def test_factor_detail_parser_supports_full(self):
+        args = build_parser().parse_args(["factor", "detail", "--id", "factor-1", "--full"])
+        self.assertEqual(args.action, "detail")
+        self.assertTrue(args.full)
+
     def test_factor_series_parser_supports_side_and_turnover_filters(self):
         args = build_parser().parse_args(
             [
@@ -179,6 +194,11 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.turnover_period, "1")
         self.assertEqual(args.delay, "0")
         self.assertEqual(args.turnover_time, "15:0015:00")
+
+    def test_factor_stocks_parser_supports_full(self):
+        args = build_parser().parse_args(["factor", "stocks", "--id", "factor-1", "--full"])
+        self.assertEqual(args.action, "stocks")
+        self.assertTrue(args.full)
 
 
 if __name__ == "__main__":
