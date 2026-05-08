@@ -58,10 +58,14 @@ class StrategyService:
         capital: str,
         frequency: str,
         strategy_type: str = "stock",
+        folder_id: str | None = None,
     ) -> dict[str, Any]:
+        params: dict[str, Any] = {"restore": 0, "type": strategy_type, "baseCapital": capital}
+        if folder_id:
+            params["fId"] = folder_id
         response = self.http_client.get(
             "/algorithm/index/new",
-            params={"restore": 0, "type": strategy_type, "baseCapital": capital},
+            params=params,
         )
         strategy_id = extract_strategy_id_from_new_response(response.url, response.text)
         if not strategy_id:

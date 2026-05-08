@@ -31,8 +31,10 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py auth status
 
 # 策略
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy list
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy list --folder-id <folder-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy get --id <strategy-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy create --name <name> --file <strategy.py>
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy create --name <name> --file <strategy.py> --folder-id <folder-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy update-code --id <strategy-id> --file <strategy.py>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy rename --id <strategy-id> --name <new-name>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py strategy delete --id <strategy-id> --confirm-delete
@@ -69,6 +71,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 
 ## 编译与回测工作流
 
+- 目录内创建策略时，使用 `strategy create --folder-id <folder-id>`；这个参数会按 HAR 观察透传到 `/algorithm/index/new?fId=...`。
 - 修改策略后，先调用 `backtest compile`，不要直接跑完整回测。
 - 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。
 - 只有 `compiled=true` 后才执行 `backtest run`。

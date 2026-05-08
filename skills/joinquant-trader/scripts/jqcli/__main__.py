@@ -24,13 +24,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     strategy = subparsers.add_parser("strategy")
     strategy_subparsers = strategy.add_subparsers(dest="action")
-    strategy_subparsers.add_parser("list")
+    strategy_list = strategy_subparsers.add_parser("list")
+    strategy_list.add_argument("--folder-id", default="0")
     strategy_get = strategy_subparsers.add_parser("get")
     strategy_get.add_argument("--id", required=True, dest="strategy_id")
     strategy_create = strategy_subparsers.add_parser("create")
     strategy_create.add_argument("--name", required=True)
     _add_code_source_args(strategy_create)
     _add_strategy_backtest_defaults(strategy_create)
+    strategy_create.add_argument("--folder-id")
     strategy_update = strategy_subparsers.add_parser("update-code")
     strategy_update.add_argument("--id", required=True, dest="strategy_id")
     strategy_update.add_argument("--name")
@@ -202,7 +204,7 @@ def dispatch(args, context):
     if args.resource == "strategy":
         context["auth"].ensure_session()
         if args.action == "list":
-            return success_response({"strategies": context["strategy"].list_strategies()})
+            return success_response({"strategies": context["strategy"].list_strategies(args.folder_id)})
         if args.action == "get":
             return success_response(context["strategy"].get_strategy(args.strategy_id))
         if args.action == "create":
@@ -215,6 +217,7 @@ def dispatch(args, context):
                     capital=args.capital,
                     frequency=args.frequency,
                     strategy_type=args.strategy_type,
+                    folder_id=args.folder_id,
                 )
             )
         if args.action == "update-code":

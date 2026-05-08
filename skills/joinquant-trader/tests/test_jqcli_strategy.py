@@ -57,6 +57,71 @@ class JqcliStrategyTest(unittest.TestCase):
         self.assertEqual(http.posts[0]["data"], {"undefined": "", "ajax": 1, "token": "session-token"})
         self.assertEqual(http.posts[0]["headers"]["Referer"], "https://www.joinquant.com/algorithm/index/list?fId=0")
 
+    def test_create_strategy_uses_har_observed_folder_id(self):
+        http = FakeHttpClient(
+            token_html="",
+            new_response=HttpResponse(
+                status=302,
+                url="https://www.joinquant.com/algorithm/index/edit?algorithmId=abc123&isNew=1&type=stock",
+                headers={},
+                text="",
+            ),
+            edit_html="""
+            <input name="algorithm[algorithmId]" value="abc123">
+            <input name="algorithm[userId]" value="user-1">
+            <input name="algorithm[accessControl]" value="0">
+            <input name="algorithm[name]" value="旧名字">
+            <input name="backtest[type]" value="1">
+            <input name="fontpref" value="default">
+            <input name="themepref" value="ambiance">
+            <input name="backtest[pyVersion]" value="3">
+            <script>window.tokenData = { value: "tok-123" }</script>
+            <textarea name="algorithm[code]">print(0)</textarea>
+            """,
+        )
+        service = StrategyService(http, token_provider=lambda: "session-token")
+        result = service.create_strategy(
+            name="新策略",
+            code="print(1)",
+            start_date="2025-01-01",
+            end_date="2025-01-31",
+            capital="100000",
+            frequency="day",
+            folder_id="122341",
+        )
+        self.assertEqual(result["strategy_id"], "abc123")
+        self.assertEqual(http.gets[0]["path"], "/algorithm/index/new")
+        self.assertEqual(
+            http.gets[0]["params"],
+            {"restore": 0, "type": "stock", "baseCapital": "100000", "fId": "122341"},
+        )
+        self.assertEqual(http.posts[0]["path"], "/algorithm/index/save")
+        self.assertEqual(http.posts[0]["data"]["algorithm[name]"], "新策略")
+
+    def test_rename_strategy_uses_har_observed_set_name_endpoint(self):
+        http = FakeHttpClient(
+            token_html="",
+            edit_html="""
+            <input name="algorithm[algorithmId]" value="abc123">
+            <input name="algorithm[name]" value="旧名字">
+            <script>window.tokenData = { value: "tok-123" }</script>
+            <textarea name="algorithm[code]">print(0)</textarea>
+            """,
+        )
+        service = StrategyService(http, token_provider=lambda: "session-token")
+        result = service.rename_strategy("abc123", "新名字")
+        self.assertEqual(result["strategy_id"], "abc123")
+        self.assertEqual(http.posts[0]["path"], "/algorithm/index/setName")
+        self.assertEqual(
+            http.posts[0]["data"],
+            {"algorithmId": "abc123", "name": "新名字", "ajax": 1, "token": "tok-123"},
+        )
+        self.assertEqual(http.posts[0]["params"], {"ajax": 1})
+        self.assertEqual(
+            http.posts[0]["headers"]["Referer"],
+            "https://www.joinquant.com/algorithm/index/edit?algorithmId=abc123",
+        )
+
     def test_parse_strategy_detail_reads_json_code(self):
         text = '{"algorithm":{"algorithmId":"123","name":"demo","code":"print(1)","userId":"9"}}'
         result = parse_strategy_detail(text, strategy_id="123")
@@ -147,12 +212,19 @@ class JqcliStrategyTest(unittest.TestCase):
 class FakeHttpClient:
     base_url = "https://www.joinquant.com"
 
-    def __init__(self, token_html: str):
+    def __init__(self, token_html: str, new_response: HttpResponse | None = None, edit_html: str | None = None):
         self.token_html = token_html
+        self.new_response = new_response
+        self.edit_html = edit_html if edit_html is not None else token_html
+        self.gets = []
         self.posts = []
 
     def get(self, path, params=None):
-        return HttpResponse(status=200, url=f"{self.base_url}{path}", headers={}, text=self.token_html)
+        self.gets.append({"path": path, "params": params})
+        if path == "/algorithm/index/new" and self.new_response is not None:
+            return self.new_response
+        text = self.edit_html if path == "/algorithm/index/edit" else self.token_html
+        return HttpResponse(status=200, url=f"{self.base_url}{path}", headers={}, text=text)
 
     def post_form(self, path, data, params=None, headers=None):
         self.posts.append({"path": path, "data": data, "params": params, "headers": headers or {}})

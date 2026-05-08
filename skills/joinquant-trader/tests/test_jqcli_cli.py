@@ -20,10 +20,23 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.name, "demo")
         self.assertEqual(args.file, "demo.py")
 
+    def test_strategy_create_parser_supports_folder_id(self):
+        args = build_parser().parse_args(
+            ["strategy", "create", "--name", "demo", "--file", "demo.py", "--folder-id", "122341"]
+        )
+        self.assertEqual(args.action, "create")
+        self.assertEqual(args.folder_id, "122341")
+
     def test_strategy_update_code_parser(self):
         args = build_parser().parse_args(["strategy", "update-code", "--id", "123", "--file", "demo.py"])
         self.assertEqual(args.action, "update-code")
         self.assertEqual(args.strategy_id, "123")
+
+    def test_strategy_list_parser_supports_folder_id(self):
+        args = build_parser().parse_args(["strategy", "list", "--folder-id", "122341"])
+        self.assertEqual(args.resource, "strategy")
+        self.assertEqual(args.action, "list")
+        self.assertEqual(args.folder_id, "122341")
 
     def test_strategy_delete_requires_confirm_flag(self):
         args = build_parser().parse_args(["strategy", "delete", "--id", "123", "--confirm-delete"])
