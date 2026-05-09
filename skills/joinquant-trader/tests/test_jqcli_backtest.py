@@ -66,6 +66,11 @@ class JqcliBacktestTest(unittest.TestCase):
         self.assertEqual(result["status"], "done")
         self.assertEqual(result["raw"]["returns"], 0.1)
 
+    def test_parse_backtest_result_prefers_runtime_status_inside_data(self):
+        result = parse_backtest_result('{"status":"0","data":{"status":"1","needSeconds":12}}')
+        self.assertEqual(result["status"], "1")
+        self.assertEqual(result["raw"]["data"]["needSeconds"], 12)
+
     def test_summarize_backtest_result_extracts_last_returns(self):
         raw = {
             "data": {
@@ -103,6 +108,24 @@ class JqcliBacktestTest(unittest.TestCase):
         self.assertEqual(detail["transaction_count"], 1)
         self.assertEqual(detail["log_count"], 2)
         self.assertEqual(detail["error_count"], 0)
+
+    def test_summarize_backtest_detail_marks_running_metrics_as_partial(self):
+        detail = summarize_backtest_detail(
+            status={"raw": {"data": {"status": "1", "needSeconds": 17.2}}},
+            result={"summary": {"state": "1", "overall_return": 88.04, "benchmark_return": 22.17, "count": 320}},
+            stats={"data": {}},
+            positions={"data": {"position": [{"stock": "A"}]}},
+            transactions={"data": {"transaction": []}},
+            logs={"data": {"logArr": ["log1"]}},
+            errors={"data": {"logArr": []}},
+        )
+        self.assertEqual(detail["state"], "1")
+        self.assertFalse(detail["is_final"])
+        self.assertEqual(detail["latest_overall_return"], 88.04)
+        self.assertEqual(detail["latest_benchmark_return"], 22.17)
+        self.assertIsNone(detail["overall_return"])
+        self.assertIsNone(detail["benchmark_return"])
+        self.assertIn("backtest_still_running_partial_metrics", detail["warnings"])
 
     def test_backtest_logs_uses_log_endpoint(self):
         class FakeHttpClient:

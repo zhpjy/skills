@@ -319,7 +319,7 @@ def extract_backtest_id(text: str) -> str | None:
 def parse_backtest_result(text: str) -> dict[str, Any]:
     parsed = _json_or_none(text)
     if parsed is not None:
-        status = _first_nested_value(parsed, "status", "state", "phase")
+        status = _runtime_status_from_raw(parsed)
         return {"status": status, "summary": summarize_backtest_result(parsed), "raw": parsed}
     return {"status": None, "raw": text}
 
@@ -350,12 +350,22 @@ def summarize_backtest_detail(
     status_data = _data_dict(status.get("raw"))
     result_summary = result.get("summary") if isinstance(result.get("summary"), dict) else {}
     stats_data = _data_dict(stats)
+    runtime_state = result_summary.get("state") or _runtime_status_from_raw(status.get("raw"))
+    latest_overall_return = result_summary.get("overall_return")
+    latest_benchmark_return = result_summary.get("benchmark_return")
+    is_running = runtime_state == "1"
+    warnings: list[str] = []
+    if is_running:
+        warnings.append("backtest_still_running_partial_metrics")
     return {
-        "state": result_summary.get("state") or status_data.get("status"),
+        "state": runtime_state,
         "need_seconds": status_data.get("needSeconds"),
         "count": result_summary.get("count"),
-        "overall_return": result_summary.get("overall_return"),
-        "benchmark_return": result_summary.get("benchmark_return"),
+        "is_final": not is_running,
+        "latest_overall_return": latest_overall_return,
+        "latest_benchmark_return": latest_benchmark_return,
+        "overall_return": None if is_running else latest_overall_return,
+        "benchmark_return": None if is_running else latest_benchmark_return,
         "algorithm_return": stats_data.get("algorithm_return"),
         "annual_algo_return": stats_data.get("annual_algo_return"),
         "benchmark_stats_return": stats_data.get("benchmark_return"),
@@ -370,6 +380,7 @@ def summarize_backtest_detail(
         "transaction_count": len(_data_dict(transactions).get("transaction") or []),
         "log_count": len(_data_dict(logs).get("logArr") or []),
         "error_count": len(_data_dict(errors).get("logArr") or []),
+        "warnings": warnings,
     }
 
 
@@ -449,6 +460,16 @@ def _state_from_raw(value: Any) -> str | None:
     data = _data_dict(value)
     state = data.get("state") or data.get("status")
     return str(state) if state is not None else None
+
+
+def _runtime_status_from_raw(value: Any) -> str | None:
+    data = _data_dict(value)
+    for key in ("status", "state", "phase"):
+        current = data.get(key)
+        if current is not None:
+            return str(current)
+    nested = _first_nested_value(value, "state", "phase", "status")
+    return str(nested) if nested is not None else None
 
 
 def _data_dict(value: Any) -> dict[str, Any]:

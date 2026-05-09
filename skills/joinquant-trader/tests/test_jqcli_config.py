@@ -49,11 +49,11 @@ class JqcliConfigTest(unittest.TestCase):
         self.assertEqual(config.state_dir.name, ".state")
         self.assertEqual(config.state_dir.parent.name, "joinquant-trader")
 
-    def test_load_config_defaults_to_current_directory_env(self):
+    def test_load_config_defaults_to_skill_env(self):
         with TemporaryDirectory() as temp_dir:
-            cwd = Path(temp_dir)
-            (cwd / ".env").write_text("JOINQUANT_USERNAME=u\nJOINQUANT_PASSWORD=p\n", encoding="utf-8")
-            with patch("jqcli.config.Path.cwd", return_value=cwd), patch.dict("os.environ", {}, clear=True):
+            env_path = Path(temp_dir) / ".env"
+            env_path.write_text("JOINQUANT_USERNAME=u\nJOINQUANT_PASSWORD=p\n", encoding="utf-8")
+            with patch("jqcli.config._default_env_path", return_value=env_path), patch.dict("os.environ", {}, clear=True):
                 config = load_config()
         self.assertEqual(config.username, "u")
 
@@ -67,11 +67,12 @@ class JqcliConfigTest(unittest.TestCase):
 
     def test_load_config_does_not_fallback_to_joinquant_env(self):
         with TemporaryDirectory() as temp_dir:
-            cwd = Path(temp_dir)
-            legacy_env_path = cwd / "joinquant" / ".env"
+            temp_root = Path(temp_dir)
+            legacy_env_path = temp_root / "joinquant" / ".env"
             legacy_env_path.parent.mkdir()
             legacy_env_path.write_text("JOINQUANT_USERNAME=u\nJOINQUANT_PASSWORD=p\n", encoding="utf-8")
-            with patch("jqcli.config.Path.cwd", return_value=cwd), patch.dict("os.environ", {}, clear=True):
+            missing_default_env = temp_root / "missing" / ".env"
+            with patch("jqcli.config._default_env_path", return_value=missing_default_env), patch.dict("os.environ", {}, clear=True):
                 with self.assertRaises(ConfigError):
                     load_config()
 
