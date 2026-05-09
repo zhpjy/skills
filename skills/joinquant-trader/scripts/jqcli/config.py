@@ -21,6 +21,10 @@ def _default_state_dir() -> Path:
     return Path(__file__).resolve().parents[2] / ".state"
 
 
+def _default_env_path() -> Path:
+    return Path(__file__).resolve().parents[2] / ".env"
+
+
 @dataclass(frozen=True)
 class JoinQuantConfig:
     username: str
@@ -76,7 +80,7 @@ def _resolve_env_path(env_path: Path | None) -> Path:
     explicit = os.environ.get("JQCLI_ENV_FILE")
     if explicit:
         return Path(explicit)
-    return Path.cwd() / ".env"
+    return _default_env_path()
 
 
 def _strip_quotes(value: str) -> str:
