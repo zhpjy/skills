@@ -81,10 +81,6 @@ class JqcliCliTest(unittest.TestCase):
                 "compile",
                 "--strategy-id",
                 "123",
-                "--start-date",
-                "2025-01-01",
-                "--end-date",
-                "2025-01-31",
             ]
         )
         self.assertEqual(args.resource, "backtest")
@@ -200,7 +196,7 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.action, "stocks")
         self.assertTrue(args.full)
 
-    def test_backtest_run_dispatch_rejects_dates_outside_restricted_window(self):
+    def test_backtest_run_dispatch_allows_user_specified_dates(self):
         args = build_parser().parse_args(
             [
                 "backtest",
@@ -208,9 +204,9 @@ class JqcliCliTest(unittest.TestCase):
                 "--strategy-id",
                 "123",
                 "--start-date",
-                "2026-04-19",
+                "2024-01-01",
                 "--end-date",
-                "2026-04-22",
+                "2025-01-31",
             ]
         )
 
@@ -221,23 +217,30 @@ class JqcliCliTest(unittest.TestCase):
             def ensure_session(self):
                 self.called = True
 
-        auth = FakeAuth()
-        payload = dispatch(args, {"auth": auth, "backtest": object()})
-        self.assertFalse(payload["ok"])
-        self.assertEqual(payload["error"]["code"], "BACKTEST_DATE_RESTRICTED")
-        self.assertFalse(auth.called)
+        class FakeBacktest:
+            def run_backtest(self, strategy_id, start_date, end_date, capital, frequency):
+                return {
+                    "strategy_id": strategy_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "capital": capital,
+                    "frequency": frequency,
+                }
 
-    def test_backtest_compile_dispatch_allows_restricted_window(self):
+        auth = FakeAuth()
+        payload = dispatch(args, {"auth": auth, "backtest": FakeBacktest()})
+        self.assertTrue(payload["ok"])
+        self.assertTrue(auth.called)
+        self.assertEqual(payload["data"]["start_date"], "2024-01-01")
+        self.assertEqual(payload["data"]["end_date"], "2025-01-31")
+
+    def test_backtest_compile_dispatch_uses_internal_compile_window(self):
         args = build_parser().parse_args(
             [
                 "backtest",
                 "compile",
                 "--strategy-id",
                 "123",
-                "--start-date",
-                "2026-04-20",
-                "--end-date",
-                "2026-04-22",
             ]
         )
 

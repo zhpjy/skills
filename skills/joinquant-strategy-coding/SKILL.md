@@ -7,7 +7,7 @@ description: Use when需要编写、修改、调试、编译或回测聚宽 Join
 
 ## 概览
 
-这个 skill 用于编写真正能在聚宽编译、运行、回测的策略代码。本地 Python 测试只能验证纯函数和语法，最终仍要以聚宽远端短区间编译作为门禁。
+这个 skill 用于编写真正能在聚宽编译、运行、回测的策略代码。本地 Python 测试只能验证纯函数和语法，最终仍要以聚宽远端编译作为门禁。
 
 ## 工作流
 
@@ -17,7 +17,7 @@ description: Use when需要编写、修改、调试、编译或回测聚宽 Join
 4. 为纯函数、因子权重、评分、风控和调仓逻辑补本地测试。
 5. 运行本地语法和测试。
 6. 用 `joinquant-trader` 上传或更新远端策略。
-7. 先用 5 天左右短区间远端编译。
+7. 先做一次远端编译门禁。
 8. 编译通过后，再跑目标区间回测。
 9. 回测时同时比较策略基准和用户关心的额外基准。
 
@@ -128,20 +128,18 @@ def rebalance(context):
 
 ## 远端编译和回测
 
-策略改动后，先远端编译，不要直接跑长回测。当前 skill 只允许使用 `2026-04-20` 到 `2026-04-22` 这个时间窗口做 `backtest compile` / `backtest run`，超出范围时应直接视为违规调用。
+策略改动后，先远端编译，不要直接跑长回测。
 
 ```bash
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile \
   --strategy-id <id> \
-  --start-date 2026-04-20 \
-  --end-date 2026-04-22 \
   --capital 50000 \
   --frequency day
 
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run \
   --strategy-id <id> \
-  --start-date 2026-04-20 \
-  --end-date 2026-04-22 \
+  --start-date <start-date> \
+  --end-date <end-date> \
   --capital 50000 \
   --frequency day
 ```
@@ -151,7 +149,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run
 - 先读返回里的 `errors`。
 - 本地修代码。
 - 更新远端策略。
-- 继续用同一个短区间重新编译。
+- 继续重新编译。
 
 如果聚宽返回 `当前并行编译或回测数量最多2个`，等待后串行重试。不要继续并发提交。
 
@@ -204,11 +202,11 @@ uv run python -m unittest discover -s strategies/tests -v
 - 代表性样本的评分顺序
 - 目标权重构建
 
-本地测试不能证明聚宽兼容性。策略代码改动后，远端短区间编译仍然是必需门禁。
+本地测试不能证明聚宽兼容性。策略代码改动后，远端编译仍然是必需门禁。
 
 ## 常见错误
 
-- 没有短区间远端编译，直接跑一年回测。
+- 没有先远端编译，直接跑一年回测。
 - 没有先问用户资金量、佣金、最低佣金和调仓频率，就默认套用某个账户假设。
 - 凭记忆使用远端策略 ID；创建或更新后 ID 可能变化，要先 `strategy list` 确认。
 - 使用聚宽不支持的直接指数代码；要用小基准策略或代理标的验证。
