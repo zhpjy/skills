@@ -128,13 +128,20 @@ def rebalance(context):
 
 ## 远端编译和回测
 
-策略改动后，先远端编译，不要直接跑长回测。编译区间用 5 天左右短区间：
+策略改动后，先远端编译，不要直接跑长回测。当前 skill 只允许使用 `2026-04-20` 到 `2026-04-22` 这个时间窗口做 `backtest compile` / `backtest run`，超出范围时应直接视为违规调用。
 
 ```bash
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile \
   --strategy-id <id> \
-  --start-date 2026-05-01 \
-  --end-date 2026-05-06 \
+  --start-date 2026-04-20 \
+  --end-date 2026-04-22 \
+  --capital 50000 \
+  --frequency day
+
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run \
+  --strategy-id <id> \
+  --start-date 2026-04-20 \
+  --end-date 2026-04-22 \
   --capital 50000 \
   --frequency day
 ```
