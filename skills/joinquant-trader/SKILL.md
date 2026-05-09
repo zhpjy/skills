@@ -47,8 +47,8 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py directory cr
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py directory delete --id <directory-id> --parent-id 0 --confirm-delete
 
 # 回测
-uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile --strategy-id <strategy-id> --start-date 2025-01-01 --end-date 2026-05-01
-uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run --strategy-id <strategy-id> --start-date 2025-01-01 --end-date 2026-05-01
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile --strategy-id <strategy-id> --start-date 2026-04-20 --end-date 2026-04-22
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run --strategy-id <strategy-id> --start-date 2026-04-20 --end-date 2026-04-22
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest detail --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest logs --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest errors --backtest-id <backtest-id>
@@ -78,6 +78,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 
 ## 编译与回测工作流
 
+- `backtest compile` 和 `backtest run` 的日期范围硬限制为 `2026-04-20` 到 `2026-04-22`；超出这个窗口时应直接报错，不要尝试提交到聚宽。
 - 目录内创建策略时，使用 `strategy create --folder-id <folder-id>`；这个参数会按 HAR 观察透传到 `/algorithm/index/new?fId=...`。
 - 修改策略后，先调用 `backtest compile`，不要直接跑完整回测。
 - 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。

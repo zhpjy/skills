@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import sys
 from pathlib import Path
 from jqcli.auth import AuthError, AuthService, JoinQuantAuthClient
@@ -11,6 +12,10 @@ from jqcli.http import JoinQuantHttpClient
 from jqcli.output import error_response, print_json
 from jqcli.session import load_session, save_session
 from jqcli.strategy import StrategyService
+
+
+ALLOWED_BACKTEST_START_DATE = datetime.date(2026, 4, 20)
+ALLOWED_BACKTEST_END_DATE = datetime.date(2026, 4, 22)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -154,6 +159,40 @@ def _add_factor_analysis_args(
     parser.add_argument("--turnover-time")
 
 
+def _parse_cli_date(value: str) -> datetime.date:
+    return datetime.datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _validate_backtest_date_window(start_date: str, end_date: str):
+    try:
+        parsed_start = _parse_cli_date(start_date)
+        parsed_end = _parse_cli_date(end_date)
+    except ValueError:
+        return error_response(
+            "INVALID_DATE_FORMAT",
+            "start-date 和 end-date 必须使用 YYYY-MM-DD 格式",
+        )
+
+    if parsed_start > parsed_end:
+        return error_response(
+            "INVALID_DATE_RANGE",
+            "start-date 不能晚于 end-date",
+        )
+
+    if parsed_start < ALLOWED_BACKTEST_START_DATE or parsed_end > ALLOWED_BACKTEST_END_DATE:
+        return error_response(
+            "BACKTEST_DATE_RESTRICTED",
+            "backtest compile/run 只允许使用 2026-04-20 到 2026-04-22 的时间范围",
+            {
+                "allowed_start_date": ALLOWED_BACKTEST_START_DATE.isoformat(),
+                "allowed_end_date": ALLOWED_BACKTEST_END_DATE.isoformat(),
+                "requested_start_date": start_date,
+                "requested_end_date": end_date,
+            },
+        )
+    return None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -255,6 +294,10 @@ def dispatch(args, context):
                 return error_response("CONFIRMATION_REQUIRED", "Pass --confirm-delete to delete a directory")
             return success_response(context["strategy"].delete_directory(directory_id=args.directory_id, parent_id=args.parent_id))
     if args.resource == "backtest":
+        if args.action in {"run", "compile"}:
+            validation_error = _validate_backtest_date_window(args.start_date, args.end_date)
+            if validation_error is not None:
+                return validation_error
         context["auth"].ensure_session()
         if args.action == "run":
             return success_response(

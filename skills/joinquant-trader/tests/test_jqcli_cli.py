@@ -4,7 +4,7 @@ from jqcli_test_path import ensure_skill_jqcli_path
 
 ensure_skill_jqcli_path()
 
-from jqcli.__main__ import build_parser
+from jqcli.__main__ import build_parser, dispatch
 
 
 class JqcliCliTest(unittest.TestCase):
@@ -199,6 +199,71 @@ class JqcliCliTest(unittest.TestCase):
         args = build_parser().parse_args(["factor", "stocks", "--id", "factor-1", "--full"])
         self.assertEqual(args.action, "stocks")
         self.assertTrue(args.full)
+
+    def test_backtest_run_dispatch_rejects_dates_outside_restricted_window(self):
+        args = build_parser().parse_args(
+            [
+                "backtest",
+                "run",
+                "--strategy-id",
+                "123",
+                "--start-date",
+                "2026-04-19",
+                "--end-date",
+                "2026-04-22",
+            ]
+        )
+
+        class FakeAuth:
+            def __init__(self):
+                self.called = False
+
+            def ensure_session(self):
+                self.called = True
+
+        auth = FakeAuth()
+        payload = dispatch(args, {"auth": auth, "backtest": object()})
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["error"]["code"], "BACKTEST_DATE_RESTRICTED")
+        self.assertFalse(auth.called)
+
+    def test_backtest_compile_dispatch_allows_restricted_window(self):
+        args = build_parser().parse_args(
+            [
+                "backtest",
+                "compile",
+                "--strategy-id",
+                "123",
+                "--start-date",
+                "2026-04-20",
+                "--end-date",
+                "2026-04-22",
+            ]
+        )
+
+        class FakeAuth:
+            def __init__(self):
+                self.called = False
+
+            def ensure_session(self):
+                self.called = True
+
+        class FakeBacktest:
+            def compile_strategy(self, strategy_id, start_date, end_date, capital, frequency):
+                return {
+                    "strategy_id": strategy_id,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "capital": capital,
+                    "frequency": frequency,
+                }
+
+        auth = FakeAuth()
+        payload = dispatch(args, {"auth": auth, "backtest": FakeBacktest()})
+        self.assertTrue(payload["ok"])
+        self.assertTrue(auth.called)
+        self.assertEqual(payload["data"]["start_date"], "2026-04-20")
+        self.assertEqual(payload["data"]["end_date"], "2026-04-22")
 
 
 if __name__ == "__main__":
