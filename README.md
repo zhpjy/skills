@@ -63,6 +63,7 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 - 如果目标位置已存在同名 skill，安装器会直接覆盖更新。
 - 当前版本依赖本机已安装 `git`。
 - 当前版本不扩展其他安装方式。
+- 如果仓库刚更新而本机 `uv` 仍命中旧缓存，可追加 `--refresh`；若需要强制绕过缓存，可用 `--no-cache` 或改用带提交 hash 的 raw URL。
 
 ## 上传器使用说明
 

@@ -70,6 +70,8 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 - `repo_root`: `/home/zhpjy/project/skills`
 - `repo_url`: `git@github.com:zhpjy/skills.git`
 
+如果刚更新完仓库主分支，`uv` 仍命中旧缓存，可优先追加 `--refresh`；如果需要强制避开本机缓存，可临时使用 `--no-cache`，或用提交 hash 替代 `main` 构造固定脚本 URL。
+
 ## Upload Rules
 
 当用户表达以下意图时：
