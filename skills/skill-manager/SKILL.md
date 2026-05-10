@@ -32,13 +32,13 @@ description: Use when the user wants to download a skill from this skills reposi
 当用户说“安装 skill”“更新本地 skill”“从 skill 仓库获取 skill”时，调用下载器：
 
 ```bash
-uv run <repo_root>/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果用户说的是“在项目中启用 superpowers”“启用 superpowers bundle”或等价意图，优先调用 bundle 同步器，而不是逐个安装：
 
 ```bash
-uv run <repo_root>/tools/sync_bundle.py --bundle superpowers-codex
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_bundle.py --repo <repo_url> --bundle superpowers-codex
 ```
 
 默认行为：
@@ -53,13 +53,13 @@ uv run <repo_root>/tools/sync_bundle.py --bundle superpowers-codex
 当用户说“上传 skill”“更新到 skill 仓库”“把本地 skill 备份到仓库”时，调用上传器：
 
 ```bash
-uv run <repo_root>/tools/push_skill.py --skill <skill-name>
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果本地 skill 不在默认位置，再显式加上：
 
 ```bash
-uv run <repo_root>/tools/push_skill.py --skill <skill-name> --source /path/to/local/skill
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name> --source /path/to/local/skill
 ```
 
 默认行为：

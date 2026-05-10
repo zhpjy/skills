@@ -53,7 +53,7 @@ uv run tools/sync_vendor.py --all
 安装命令如下：
 
 ```bash
-uv run /path/to/this-repo/tools/sync_skill.py --repo <repo-url> --skill <skill-name>
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo-url> --skill <skill-name>
 ```
 
 安装行为说明：
@@ -71,13 +71,13 @@ uv run /path/to/this-repo/tools/sync_skill.py --repo <repo-url> --skill <skill-n
 默认命令如下：
 
 ```bash
-uv run /path/to/this-repo/tools/push_skill.py --skill <skill-name>
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name>
 ```
 
 如果需要显式指定本地源目录，可以这样调用：
 
 ```bash
-uv run /path/to/this-repo/tools/push_skill.py --skill <skill-name> --source /path/to/local/skill
+uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name> --source /path/to/local/skill
 ```
 
 上传行为说明：

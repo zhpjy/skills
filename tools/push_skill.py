@@ -1,14 +1,92 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
+import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from uuid import uuid4
 
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tools.lib.common import replace_directory, run_git, validate_skill_name, write_repo_info
+def validate_skill_name(skill_name: str) -> None:
+    candidate = Path(skill_name)
+    if (
+        not skill_name
+        or candidate.is_absolute()
+        or "/" in skill_name
+        or "\\" in skill_name
+        or skill_name in {".", ".."}
+        or ".." in candidate.parts
+    ):
+        raise ValueError(
+            "skill_name must be a single directory name without path separators, "
+            "absolute paths, or '..'"
+        )
+
+
+def replace_directory(
+    source_dir: Path,
+    target_dir: Path,
+    *,
+    symlinks: bool = False,
+) -> Path:
+    target_dir.parent.mkdir(parents=True, exist_ok=True)
+    staged_dir = target_dir.parent / f".{target_dir.name}.tmp-{uuid4().hex}"
+    backup_dir = target_dir.parent / f".{target_dir.name}.bak-{uuid4().hex}"
+
+    shutil.copytree(source_dir, staged_dir, symlinks=symlinks)
+
+    replaced_existing = False
+    try:
+        if target_dir.exists():
+            target_dir.rename(backup_dir)
+            replaced_existing = True
+
+        staged_dir.rename(target_dir)
+    except Exception:
+        if replaced_existing and backup_dir.exists() and not target_dir.exists():
+            backup_dir.rename(target_dir)
+        if staged_dir.exists():
+            shutil.rmtree(staged_dir, ignore_errors=True)
+        raise
+
+    if backup_dir.exists():
+        shutil.rmtree(backup_dir, ignore_errors=True)
+
+    return target_dir
+
+
+def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    env = {
+        **os.environ,
+        "GIT_TERMINAL_PROMPT": "0",
+    }
+    result = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        message = result.stderr.strip() or result.stdout.strip() or "unknown git error"
+        raise RuntimeError(f"git {' '.join(args)} failed: {message}")
+    return result
+
+
+def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
+    repo_info = {
+        "repo_root": str(repo_root),
+        "repo_url": repo_url,
+    }
+    (skill_dir / "repo-info.json").write_text(
+        json.dumps(repo_info, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def sync_local_skill_manager(
@@ -17,9 +95,12 @@ def sync_local_skill_manager(
     repo_url: str,
     pushed_skill_name: str,
     pushed_source_dir: Path,
+    manager_fallback_dir: Path | None = None,
 ) -> None:
     if pushed_skill_name == "skill-manager":
         manager_source_dir = pushed_source_dir
+    elif manager_fallback_dir is not None:
+        manager_source_dir = manager_fallback_dir
     else:
         manager_source_dir = repo_root / "skills" / "skill-manager"
 
@@ -64,10 +145,15 @@ def has_staged_skill_changes(clone_dir: Path, skill_name: str) -> bool:
     return bool(result.stdout.strip())
 
 
-def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
+def push_skill(
+    skill_name: str,
+    source_dir: Path,
+    script_path: Path,
+    repo_url: str | None = None,
+) -> None:
     project_root = Path.cwd()
-    repo_root = get_repo_root(script_path)
-    origin_url = get_origin_url(repo_root)
+    repo_root = get_repo_root(script_path) if repo_url is None else script_path.parent.parent
+    origin_url = repo_url or get_origin_url(repo_root)
 
     with tempfile.TemporaryDirectory(prefix="push-skill-") as temp_dir:
         clone_dir = Path(temp_dir) / "repo"
@@ -78,18 +164,33 @@ def push_skill(skill_name: str, source_dir: Path, script_path: Path) -> None:
 
         run_git(["add", f"skills/{skill_name}"], cwd=clone_dir)
         if not has_staged_skill_changes(clone_dir, skill_name):
-            sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
+            sync_local_skill_manager(
+                project_root,
+                repo_root,
+                origin_url,
+                skill_name,
+                source_dir,
+                clone_dir / "skills" / "skill-manager",
+            )
             print(f"No changes for skill '{skill_name}'.")
             return
 
         run_git(["commit", "-m", f"Update skill: {skill_name}"], cwd=clone_dir)
         run_git(["push"], cwd=clone_dir)
-        sync_local_skill_manager(project_root, repo_root, origin_url, skill_name, source_dir)
+        sync_local_skill_manager(
+            project_root,
+            repo_root,
+            origin_url,
+            skill_name,
+            source_dir,
+            clone_dir / "skills" / "skill-manager",
+        )
         print(f"Pushed skill '{skill_name}' to remote repository.")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Push a local skill to this repository.")
+    parser.add_argument("--repo", help="Git repository URL for remote script usage")
     parser.add_argument("--skill", required=True, help="Skill name under skills/")
     parser.add_argument(
         "--source",
@@ -106,7 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         validate_skill_name(args.skill)
         source_dir = resolve_source_dir(args.skill, args.source)
         validate_source_dir(source_dir)
-        push_skill(args.skill, source_dir, Path(__file__).resolve())
+        push_skill(args.skill, source_dir, Path(__file__).resolve(), repo_url=args.repo)
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1

@@ -1,6 +1,8 @@
 import subprocess
 import sys
+import tempfile
 import unittest
+from shutil import copy2
 from pathlib import Path
 
 
@@ -27,6 +29,31 @@ class CliEntrypointTests(unittest.TestCase):
                 )
                 self.assertEqual(result.returncode, 0, msg=result.stderr)
                 self.assertIn("usage:", result.stdout)
+
+    def test_tool_scripts_support_help_when_copied_outside_repo(self) -> None:
+        script_paths = [
+            REPO_ROOT / "tools" / "sync_skill.py",
+            REPO_ROOT / "tools" / "push_skill.py",
+            REPO_ROOT / "tools" / "sync_bundle.py",
+        ]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+
+            for script_path in script_paths:
+                copied_script = temp_root / script_path.name
+                copy2(script_path, copied_script)
+
+                with self.subTest(script=script_path.name):
+                    result = subprocess.run(
+                        [sys.executable, str(copied_script), "--help"],
+                        cwd=temp_root,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    self.assertEqual(result.returncode, 0, msg=result.stderr)
+                    self.assertIn("usage:", result.stdout)
 
 
 if __name__ == "__main__":
