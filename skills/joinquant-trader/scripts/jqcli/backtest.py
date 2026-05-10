@@ -23,9 +23,6 @@ class BacktestService:
         capital: str,
         frequency: str,
     ) -> dict[str, Any]:
-        compile_result = self.compile_strategy(strategy_id, start_date, end_date, capital, frequency)
-        if not compile_result.get("compiled"):
-            return {"backtest_id": None, "compile": compile_result, "warnings": ["compile_failed"]}
         return self._build_backtest(strategy_id, start_date, end_date, capital, frequency)
 
     def compile_strategy(

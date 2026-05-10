@@ -81,8 +81,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 - 目录内创建策略时，使用 `strategy create --folder-id <folder-id>`；这个参数会按 HAR 观察透传到 `/algorithm/index/new?fId=...`。
 - 修改策略后，先调用 `backtest compile`，不要直接跑完整回测；这个命令不需要额外传回测日期。
 - 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。
-- 只有 `compiled=true` 后才执行 `backtest run`；回测区间由 `--start-date` 和 `--end-date` 显式指定。
-- `backtest run` 自身也会先执行一次编译门禁；编译失败时会返回 `backtest_id=null` 和 `compile.errors`，不会发起正式回测。
+- `backtest run` 直接使用 `--start-date` 和 `--end-date` 发起正式回测，不会自动追加一次编译门禁。
 - 编译接口来自 HAR 观察到的 `POST /algorithm/index/build?ajax=1`，其中 `backtest[type]=1`；正式回测仍使用 `backtest[type]=0`。
 
 ## 安全边界

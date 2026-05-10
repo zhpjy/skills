@@ -256,26 +256,22 @@ class JqcliBacktestTest(unittest.TestCase):
         self.assertEqual(http.posts[0][0], "/algorithm/index/build")
         self.assertEqual(http.posts[0][1]["backtest[type]"], "1")
 
-    def test_run_backtest_does_not_build_when_compile_fails(self):
+    def test_run_backtest_uses_requested_window_without_compile_gate(self):
         class FakeBacktestService(BacktestService):
             def __init__(self):
-                self.build_calls = 0
                 self.strategy_service = None
                 self.http_client = None
                 self.token_provider = lambda: "t"
+                self.build_calls = []
 
-            def compile_strategy(self, *args, **kwargs):
-                return {"compiled": False, "backtest_id": "compile-1", "errors": ["SyntaxError"]}
-
-            def _build_backtest(self, *args, **kwargs):
-                self.build_calls += 1
-                return {"backtest_id": "bt"}
+            def _build_backtest(self, strategy_id, start_date, end_date, capital, frequency, **kwargs):
+                self.build_calls.append((strategy_id, start_date, end_date, capital, frequency, kwargs))
+                return {"backtest_id": "bt-1"}
 
         service = FakeBacktestService()
         result = service.run_backtest("s1", "2025-01-01", "2025-01-31", "100000", "day")
-        self.assertIsNone(result["backtest_id"])
-        self.assertEqual(result["compile"]["errors"], ["SyntaxError"])
-        self.assertEqual(service.build_calls, 0)
+        self.assertEqual(result["backtest_id"], "bt-1")
+        self.assertEqual(service.build_calls[0][0:5], ("s1", "2025-01-01", "2025-01-31", "100000", "day"))
 
 
 if __name__ == "__main__":
