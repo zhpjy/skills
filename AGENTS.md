@@ -25,7 +25,7 @@
 安装命令：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo git@github.com:zhpjy/skills.git --skill skill-manager
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo git@github.com:zhpjy/skills.git --skill skill-manager
 ```
 
 如果已经存在 `skill-manager`，不要重复安装。
@@ -56,21 +56,19 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 优先调用：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果用户表达的是“在项目中启用 superpowers”“启用 superpowers 能力包”或等价意图，优先调用 bundle 同步器，而不是逐个安装 skill：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_bundle.py --repo <repo_url> --bundle superpowers-codex
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_bundle.py --repo <repo_url> --bundle superpowers-codex
 ```
 
 如果没有可用的 `repo-info.json`，则使用这个仓库的默认信息：
 
 - `repo_root`: `/home/zhpjy/project/skills`
 - `repo_url`: `git@github.com:zhpjy/skills.git`
-
-如果刚更新完仓库主分支，`uv` 仍命中旧缓存，可优先追加 `--refresh`；如果需要强制避开本机缓存，可临时使用 `--no-cache`，或用提交 hash 替代 `main` 构造固定脚本 URL。
 
 ## Upload Rules
 
@@ -83,13 +81,13 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 优先调用：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果用户明确给了本地源目录，再附加：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name> --source /path/to/local/skill
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name> --source /path/to/local/skill
 ```
 
 ## Direction Defaults

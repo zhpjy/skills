@@ -32,13 +32,13 @@ description: Use when the user wants to download a skill from this skills reposi
 当用户说“安装 skill”“更新本地 skill”“从 skill 仓库获取 skill”时，调用下载器：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果用户说的是“在项目中启用 superpowers”“启用 superpowers bundle”或等价意图，优先调用 bundle 同步器，而不是逐个安装：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_bundle.py --repo <repo_url> --bundle superpowers-codex
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_bundle.py --repo <repo_url> --bundle superpowers-codex
 ```
 
 默认行为：
@@ -47,20 +47,19 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 - 安装到当前项目 `.agents/skills/<skill-name>/`
 - 如果本地已存在同名 skill，则直接覆盖更新
 - bundle 同步会把 `bundles/superpowers-codex.json` 中声明的整组 skill 安装到当前项目 `.agents/skills/`
-- 如果仓库刚更新而 `uv` 仍命中旧缓存，优先追加 `--refresh`；如果需要强制避开缓存，可临时使用 `--no-cache`，或改用带提交 hash 的 raw URL
 
 ## 上传本地 skill
 
 当用户说“上传 skill”“更新到 skill 仓库”“把本地 skill 备份到仓库”时，调用上传器：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name>
 ```
 
 如果本地 skill 不在默认位置，再显式加上：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name> --source /path/to/local/skill
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo_url> --skill <skill-name> --source /path/to/local/skill
 ```
 
 默认行为：

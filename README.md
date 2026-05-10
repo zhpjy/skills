@@ -53,7 +53,7 @@ uv run tools/sync_vendor.py --all
 安装命令如下：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo-url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sync_skill.py --repo <repo-url> --skill <skill-name>
 ```
 
 安装行为说明：
@@ -63,7 +63,6 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 - 如果目标位置已存在同名 skill，安装器会直接覆盖更新。
 - 当前版本依赖本机已安装 `git`。
 - 当前版本不扩展其他安装方式。
-- 如果仓库刚更新而本机 `uv` 仍命中旧缓存，可追加 `--refresh`；若需要强制绕过缓存，可用 `--no-cache` 或改用带提交 hash 的 raw URL。
 
 ## 上传器使用说明
 
@@ -72,13 +71,13 @@ uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/sy
 默认命令如下：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name>
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name>
 ```
 
 如果需要显式指定本地源目录，可以这样调用：
 
 ```bash
-uv run --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name> --source /path/to/local/skill
+uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/main/tools/push_skill.py --repo <repo-url> --skill <skill-name> --source /path/to/local/skill
 ```
 
 上传行为说明：
