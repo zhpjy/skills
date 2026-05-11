@@ -1,6 +1,6 @@
 ---
 name: joinquant-trader
-description: Use when需要让 AI 通过项目内 jqcli 操作聚宽策略、目录、回测和回测详情，或需要创建/修改/运行/评价 JoinQuant 量化策略。
+description: Use when需要通过项目内 jqcli 操作聚宽远端策略、目录、回测、回测详情或因子接口，而不是编写或重构本地策略代码。
 ---
 
 # JoinQuant Trader
@@ -10,6 +10,11 @@ description: Use when需要让 AI 通过项目内 jqcli 操作聚宽策略、目
 这个 skill 使用项目内置 `jqcli` 操作聚宽。`jqcli` 面向 AI 自动化：所有命令输出 JSON，调用前会自动复用或刷新登录态。
 
 高体积查询命令默认返回摘要，减少 token 消耗；只有显式传 `--full` 时才返回完整 payload。
+
+这个 skill 只负责远端策略、目录、回测和因子接口操作。
+
+- 编写、修改、重构本地策略代码时，使用 `joinquant-strategy-coding`。
+- 只有当需要上传策略、读取远端策略、发起回测、查看回测结果或查询因子看板时，才使用本 skill。
 
 ## 配置
 
@@ -83,6 +88,8 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 - 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。
 - `backtest run` 直接使用 `--start-date` 和 `--end-date` 发起正式回测，不会自动追加一次编译门禁。
 - 编译接口来自 HAR 观察到的 `POST /algorithm/index/build?ajax=1`，其中 `backtest[type]=1`；正式回测仍使用 `backtest[type]=0`。
+
+不要把这个 skill 当作策略代码生成器。它负责调用远端接口，不负责决定策略逻辑或实盘约束。
 
 ## 安全边界
 

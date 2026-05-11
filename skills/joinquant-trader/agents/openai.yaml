@@ -1,0 +1,4 @@
+interface:
+  display_name: "聚宽远端操作"
+  short_description: "通过项目内 jqcli 操作聚宽远端策略、目录、回测和因子接口"
+  default_prompt: "帮我用 jqcli 操作聚宽远端策略、回测或因子接口"
