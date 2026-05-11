@@ -40,8 +40,6 @@ description: Use when需要编写、修改、调试、编译或回测聚宽 Join
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py <resource> <action> ...
 ```
 
-如果仓库指令要求 `rtk`，所有 shell 命令前加 `rtk`。
-
 ## 文件位置
 
 - 策略文件放在 `strategies/jq_<name>.py`
@@ -140,7 +138,7 @@ def rebalance(context):
 
 策略改动后，先远端编译，不要直接跑长回测。
 
-- `backtest compile` 使用工具内部固定的短区间编译窗口 `2026-04-20` 到 `2026-04-22`，命令里不需要额外传 `--start-date` 和 `--end-date`。
+- `backtest compile` 使用 `joinquant-trader` 内部维护的固定短区间编译窗口，命令里不需要额外传 `--start-date` 和 `--end-date`。
 - `backtest run` 使用用户显式传入的 `--start-date` 和 `--end-date` 发起正式回测；日期格式必须是 `YYYY-MM-DD`，且 `start-date` 不能晚于 `end-date`。
 
 ```bash
