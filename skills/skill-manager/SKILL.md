@@ -18,12 +18,20 @@ description: Use when the user wants to download a skill from this skills reposi
 
 ## 先读本地仓库信息
 
-这个 skill 安装到项目后，同目录会有一个 `repo-info.json` 文件。
+这个 skill 安装到项目后，会维护两类信息：
 
-执行上传或下载前，先读取这个文件，获取：
+- `.agents/skills/skill-manager/repo-info.json`
+- `.agents/.local/skill-manager.json`
 
-- `repo_root`：本机上的 skills 仓库路径
-- `repo_url`：这个 skills 仓库对应的仓库 URL
+执行上传或下载前，优先读取：
+
+- `repo-info.json` 里的 `repo_url`
+- `skill-manager.json` 里的 `repo_root`
+
+其中：
+
+- `repo_url` 是可同步的仓库信息
+- `repo_root` 是本地路径，只属于当前机器或当前项目，不应通过远程脚本猜测或覆盖
 
 如果 `repo-info.json` 不存在，就说明当前项目里的 `skill-manager` 还没有正确同步。此时应提示用户先通过这个 skills 仓库重新安装或更新一次 skill。
 
@@ -67,6 +75,18 @@ uv run --refresh --no-project https://raw.githubusercontent.com/zhpjy/skills/mai
 - 不传 `--source` 时，默认从当前项目 `.agents/skills/<skill-name>/` 读取
 - 上传目标固定为仓库中的 `skills/<skill-name>/`
 - 如果远端当前内容无变化，则直接返回成功，不提交、不 push
+
+## 本地 repo_root 的获取顺序
+
+脚本需要本地仓库根目录时，按以下顺序取值：
+
+1. 显式传入 `--repo-root`
+2. 环境变量 `SKILLS_REPO_ROOT`
+3. `.agents/.local/skill-manager.json` 中已有的 `repo_root`
+4. 兼容旧版本时，从 `repo-info.json` 中读取 `repo_root`
+5. 仅在本地仓库脚本模式下，才从脚本所在仓库推断
+
+远程脚本模式下，如果拿不到可信 `repo_root`，也不要写入错误值；此时只使用 `repo_url` 继续工作。
 
 ## 默认判定规则
 

@@ -8,6 +8,9 @@ from pathlib import Path
 from uuid import uuid4
 
 
+LOCAL_STATE_RELATIVE_PATH = Path(".agents") / ".local" / "skill-manager.json"
+
+
 def validate_skill_name(skill_name: str) -> None:
     candidate = Path(skill_name)
     if (
@@ -75,12 +78,20 @@ def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return result
 
 
-def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
+def write_repo_info(skill_dir: Path, repo_url: str) -> None:
     repo_info = {
-        "repo_root": str(repo_root),
         "repo_url": repo_url,
     }
     (skill_dir / "repo-info.json").write_text(
         json.dumps(repo_info, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def write_local_repo_state(project_root: Path, repo_root: Path) -> None:
+    state_path = project_root / LOCAL_STATE_RELATIVE_PATH
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps({"repo_root": str(repo_root)}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )

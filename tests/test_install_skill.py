@@ -3,6 +3,7 @@ import io
 import contextlib
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from unittest import mock
 
@@ -113,6 +114,63 @@ class InstallSkillTests(unittest.TestCase):
                 "new\n",
             )
             self.assertFalse((installed_dir / "extra.txt").exists())
+
+    def test_install_skill_remote_mode_keeps_repo_root_in_local_state_and_repo_info_only_has_repo_url(self) -> None:
+        module = load_install_skill_module(self)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = Path(temp_dir)
+            project_dir = workspace / "project"
+            project_dir.mkdir()
+            stable_repo_root = workspace / "skills-repo"
+            (stable_repo_root / "tools").mkdir(parents=True)
+            (stable_repo_root / "tools" / "push_skill.py").write_text("# marker\n", encoding="utf-8")
+
+            local_state_path = project_dir / ".agents" / ".local" / "skill-manager.json"
+            local_state_path.parent.mkdir(parents=True)
+            local_state_path.write_text(
+                json.dumps({"repo_root": str(stable_repo_root)}) + "\n",
+                encoding="utf-8",
+            )
+
+            def fake_clone(repo_url: str, clone_dir: Path) -> None:
+                remote_skill_dir = clone_dir / "skills" / "demo-skill"
+                remote_skill_dir.mkdir(parents=True)
+                (remote_skill_dir / "SKILL.md").write_text("# demo\n", encoding="utf-8")
+
+                manager_dir = clone_dir / "skills" / "skill-manager"
+                manager_dir.mkdir(parents=True)
+                (manager_dir / "SKILL.md").write_text("# manager\n", encoding="utf-8")
+
+            installed_dir = module.install_skill(
+                repo_url="https://example.com/repo.git",
+                skill_name="demo-skill",
+                project_root=project_dir,
+                clone_repo=fake_clone,
+            )
+
+            repo_info = json.loads(
+                (
+                    project_dir
+                    / ".agents"
+                    / "skills"
+                    / "skill-manager"
+                    / "repo-info.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                repo_info,
+                {
+                    "repo_url": "https://example.com/repo.git",
+                },
+            )
+            self.assertEqual(
+                json.loads(local_state_path.read_text(encoding="utf-8")),
+                {
+                    "repo_root": str(stable_repo_root),
+                },
+            )
+            self.assertEqual(installed_dir, project_dir / ".agents" / "skills" / "demo-skill")
 
     def test_install_skill_errors_when_remote_skill_is_missing(self) -> None:
         install_skill = load_install_skill(self)

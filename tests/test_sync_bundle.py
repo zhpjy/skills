@@ -156,8 +156,22 @@ class SyncBundleTests(unittest.TestCase):
             self.assertEqual(
                 repo_info,
                 {
-                    "repo_root": str(repo_root),
                     "repo_url": "git@github.com:zhpjy/skills.git",
+                },
+            )
+
+            local_state = json.loads(
+                (
+                    project_root
+                    / ".agents"
+                    / ".local"
+                    / "skill-manager.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                local_state,
+                {
+                    "repo_root": str(repo_root),
                 },
             )
 

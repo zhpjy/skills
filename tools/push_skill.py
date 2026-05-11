@@ -11,6 +11,9 @@ from pathlib import Path
 from uuid import uuid4
 
 
+LOCAL_STATE_RELATIVE_PATH = Path(".agents") / ".local" / "skill-manager.json"
+
+
 def validate_skill_name(skill_name: str) -> None:
     candidate = Path(skill_name)
     if (
@@ -78,9 +81,22 @@ def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return result
 
 
-def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
+def _read_json_file(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _is_plausible_repo_root(path: Path) -> bool:
+    return (
+        (path / ".git").exists()
+        or (path / "tools" / "push_skill.py").is_file()
+        or (path / "skills" / "skill-manager" / "SKILL.md").is_file()
+    )
+
+
+def write_repo_info(skill_dir: Path, repo_url: str) -> None:
     repo_info = {
-        "repo_root": str(repo_root),
         "repo_url": repo_url,
     }
     (skill_dir / "repo-info.json").write_text(
@@ -89,9 +105,51 @@ def write_repo_info(skill_dir: Path, repo_root: Path, repo_url: str) -> None:
     )
 
 
+def write_local_repo_state(project_root: Path, repo_root: Path) -> None:
+    state_path = project_root / LOCAL_STATE_RELATIVE_PATH
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps({"repo_root": str(repo_root)}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def resolve_local_repo_root(
+    project_root: Path,
+    *,
+    explicit_repo_root: str | None = None,
+    fallback_repo_root: Path | None = None,
+) -> Path | None:
+    candidates: list[Path] = []
+    if explicit_repo_root:
+        candidates.append(Path(explicit_repo_root).expanduser().resolve())
+
+    env_repo_root = os.environ.get("SKILLS_REPO_ROOT")
+    if env_repo_root:
+        candidates.append(Path(env_repo_root).expanduser().resolve())
+
+    state_repo_root = _read_json_file(project_root / LOCAL_STATE_RELATIVE_PATH).get("repo_root")
+    if state_repo_root:
+        candidates.append(Path(state_repo_root).expanduser().resolve())
+
+    legacy_repo_root = _read_json_file(
+        project_root / ".agents" / "skills" / "skill-manager" / "repo-info.json"
+    ).get("repo_root")
+    if legacy_repo_root:
+        candidates.append(Path(legacy_repo_root).expanduser().resolve())
+
+    if fallback_repo_root is not None:
+        candidates.append(fallback_repo_root.resolve())
+
+    for candidate in candidates:
+        if _is_plausible_repo_root(candidate):
+            return candidate
+    return None
+
+
 def sync_local_skill_manager(
     project_root: Path,
-    repo_root: Path,
+    repo_root: Path | None,
     repo_url: str,
     pushed_skill_name: str,
     pushed_source_dir: Path,
@@ -101,8 +159,10 @@ def sync_local_skill_manager(
         manager_source_dir = pushed_source_dir
     elif manager_fallback_dir is not None:
         manager_source_dir = manager_fallback_dir
-    else:
+    elif repo_root is not None:
         manager_source_dir = repo_root / "skills" / "skill-manager"
+    else:
+        return
 
     manager_skill_file = manager_source_dir / "SKILL.md"
     if not manager_skill_file.is_file():
@@ -110,7 +170,9 @@ def sync_local_skill_manager(
 
     manager_target_dir = project_root / ".agents" / "skills" / "skill-manager"
     replace_directory(manager_source_dir, manager_target_dir)
-    write_repo_info(manager_target_dir, repo_root, repo_url)
+    write_repo_info(manager_target_dir, repo_url)
+    if repo_root is not None:
+        write_local_repo_state(project_root, repo_root)
 
 
 def resolve_source_dir(skill_name: str, source: str | None) -> Path:
@@ -150,14 +212,18 @@ def push_skill(
     source_dir: Path,
     script_path: Path,
     repo_url: str | None = None,
+    local_repo_root: Path | None = None,
 ) -> None:
     project_root = Path.cwd()
-    repo_root = get_repo_root(script_path) if repo_url is None else script_path.parent.parent
+    repo_root = local_repo_root or (
+        get_repo_root(script_path) if repo_url is None else resolve_local_repo_root(project_root)
+    )
     origin_url = repo_url or get_origin_url(repo_root)
+    clone_cwd = repo_root if repo_root is not None else project_root
 
     with tempfile.TemporaryDirectory(prefix="push-skill-") as temp_dir:
         clone_dir = Path(temp_dir) / "repo"
-        run_git(["clone", "--depth=1", origin_url, str(clone_dir)], cwd=repo_root)
+        run_git(["clone", "--depth=1", origin_url, str(clone_dir)], cwd=clone_cwd)
 
         target_dir = clone_dir / "skills" / skill_name
         replace_directory(source_dir, target_dir)
@@ -191,6 +257,7 @@ def push_skill(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Push a local skill to this repository.")
     parser.add_argument("--repo", help="Git repository URL for remote script usage")
+    parser.add_argument("--repo-root", help="Optional local skills repository root to persist as local state")
     parser.add_argument("--skill", required=True, help="Skill name under skills/")
     parser.add_argument(
         "--source",
@@ -207,7 +274,17 @@ def main(argv: list[str] | None = None) -> int:
         validate_skill_name(args.skill)
         source_dir = resolve_source_dir(args.skill, args.source)
         validate_source_dir(source_dir)
-        push_skill(args.skill, source_dir, Path(__file__).resolve(), repo_url=args.repo)
+        push_skill(
+            args.skill,
+            source_dir,
+            Path(__file__).resolve(),
+            repo_url=args.repo,
+            local_repo_root=resolve_local_repo_root(
+                Path.cwd(),
+                explicit_repo_root=args.repo_root,
+                fallback_repo_root=None if args.repo else get_repo_root(Path(__file__).resolve()),
+            ),
+        )
     except Exception as exc:
         print(str(exc), file=sys.stderr)
         return 1

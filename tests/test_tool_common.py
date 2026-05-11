@@ -98,7 +98,6 @@ class ToolCommonTests(unittest.TestCase):
 
             common.write_repo_info(
                 skill_dir=skill_dir,
-                repo_root=Path("/repo/root"),
                 repo_url="git@example.com:repo.git",
             )
 
@@ -106,8 +105,31 @@ class ToolCommonTests(unittest.TestCase):
             self.assertEqual(
                 repo_info,
                 {
-                    "repo_root": "/repo/root",
                     "repo_url": "git@example.com:repo.git",
+                },
+            )
+
+    def test_write_local_repo_state_writes_expected_json(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = Path(temp_dir)
+
+            common.write_local_repo_state(
+                project_root=project_root,
+                repo_root=Path("/repo/root"),
+            )
+
+            state = json.loads(
+                (
+                    project_root
+                    / ".agents"
+                    / ".local"
+                    / "skill-manager.json"
+                ).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                state,
+                {
+                    "repo_root": "/repo/root",
                 },
             )
 
