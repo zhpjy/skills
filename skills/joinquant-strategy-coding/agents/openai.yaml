@@ -1,4 +1,4 @@
 interface:
   display_name: "聚宽策略编写"
-  short_description: "编写默认按实盘约束设计、可在聚宽远端编译回测的量化策略代码"
-  default_prompt: "帮我编写一个按实盘约束设计、可在聚宽编译和回测的量化策略"
+  short_description: "编写默认按实盘约束设计、先短后长递进回测的量化策略代码"
+  default_prompt: "帮我编写一个按实盘约束设计、先做短区间验证再递进回测的量化策略"

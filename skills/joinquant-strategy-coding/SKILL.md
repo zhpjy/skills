@@ -15,12 +15,22 @@ description: Use when需要编写、修改、调试、编译或回测聚宽 Join
 - 默认使用真实价格
 - 显式建模手续费、最低佣金和滑点
 - 显式处理整数手、停牌、涨跌停和缺失数据
-- 本地测试后仍必须经过聚宽远端短区间编译门禁
+- 本地测试后仍必须先过聚宽远端短区间编译，再按短到长递进回测
 
 如果只需要查看实盘准备清单或回测评价口径，按需读取：
 
 - `references/live-trading-checklist.md`
 - `references/backtest-evaluation.md`
+
+## 与通用 superpowers 的边界
+
+在本仓库里，只要任务主体是“编写、修改、调试、编译或回测聚宽策略代码”，本 skill 就是主流程；如果通用 superpowers skill 的默认动作与这里的领域门禁冲突，以本 skill 为准。
+
+- 不要求每次策略小改动都先走 `superpowers:brainstorming -> spec -> plan`。只有在做策略框架重构、跨策略研究流程重设计、或会明显改变既有策略族结构时，才补这套设计流程。
+- 不要求把 `superpowers:test-driven-development` 机械套到整个 JoinQuant 生命周期。TDD 重点用于纯 helper、评分函数、权重归一化、风控判定、调仓约束等可在本地稳定验证的逻辑。
+- 本地 failing test 只能证明局部行为，不等价于聚宽运行时兼容性；远端短区间编译仍然是策略代码改动后的首要真实性门禁。
+- `superpowers:systematic-debugging`、`superpowers:verification-before-completion`、`superpowers:requesting-code-review` 这类通用 skill 仍然推荐保留，因为它们通常补强的是排错纪律、验证纪律和审查纪律，而不是替代领域流程。
+- 如果用户或项目文档已明确给出更高优先级约束，继续按用户或项目文档执行。
 
 ## 工作流
 
@@ -32,7 +42,7 @@ description: Use when需要编写、修改、调试、编译或回测聚宽 Join
 6. 为纯函数、评分、风控和调仓逻辑补本地测试。
 7. 运行本地语法和测试。
 8. 用 `joinquant-trader` 上传或更新远端策略。
-9. 先做远端短区间编译，通过后再做目标区间回测和评价。
+9. 先做远端短区间编译，通过后先跑短区间回测，再根据结果决定是否逐级扩大到 6 个月、1 年、3 年等更长区间。
 
 远端操作使用 `joinquant-trader`。本仓库通常从项目根目录执行：
 
@@ -42,8 +52,9 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py <resource> <
 
 ## 文件位置
 
-- 策略文件放在 `strategies/jq_<name>.py`
-- 策略测试放在 `strategies/tests/test_<name>.py`
+- 如果当前任务属于某个 `joinquant/research/YYYYMMDD-研究主题/` 研究包，候选策略文件必须放在该研究包的 `candidate/` 内，例如 `candidate/strategy.py`；候选测试也放在同一 `candidate/` 内，例如 `candidate/test_strategy.py`
+- 只有没有研究包上下文、或者用户明确要求维护长期策略库时，策略文件才放在 `strategies/jq_<name>.py`
+- 只有没有研究包上下文、或者用户明确要求维护长期策略库时，策略测试才放在 `strategies/tests/test_<name>.py`
 - 测试导入辅助使用 `strategies/tests/strategy_test_path.py`
 - jqcli 等工具实现归 `.agents/skills/` 管，不要在仓库根目录重复创建工具包
 
@@ -136,10 +147,13 @@ def rebalance(context):
 
 ## 远端编译和回测
 
-策略改动后，先远端编译，不要直接跑长回测。
+策略改动后，先远端编译，不要直接跑长回测。正式回测默认采用“短区间先行、通过后再扩区间”的递进方式。
 
 - `backtest compile` 使用 `joinquant-trader` 内部维护的固定短区间编译窗口，命令里不需要额外传 `--start-date` 和 `--end-date`。
 - `backtest run` 使用用户显式传入的 `--start-date` 和 `--end-date` 发起正式回测；日期格式必须是 `YYYY-MM-DD`，且 `start-date` 不能晚于 `end-date`。
+- 如果用户没有给区间，默认按 `6个月 -> 1年 -> 3年` 递进；上一档结果还没有基本解释清楚前，不进入下一档。
+- 如果用户一开始就要求 1 年或 3 年，也先补一次约 6 个月短回测做烟雾测试；只有在收益、回撤、换手和交易成本口径没有明显异常时，才扩到更长区间。
+- 每扩大一档，都要先判断前一档是否值得继续：是否真实跑赢基准、回撤是否可接受、换手和费用是否失真、是否暴露出容量或风格集中问题。
 
 ```bash
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile \
@@ -168,6 +182,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run
 
 不能只因为收益高或回撤低就推荐策略。至少同时看：
 
+- 递进区间下的结果是否一致，例如 6 个月、1 年、3 年是否都能讲通，而不是只看单个最长区间
 - 收益率与基准比较
 - 最大回撤
 - Sharpe / Sortino
@@ -206,6 +221,9 @@ uv run python -m unittest discover -s strategies/tests -v
 - 没有先确认资金量、佣金、最低佣金和调仓频率，就默认套用某个账户假设
 - 没有开启 `avoid_future_data` 或在日期处理上混入未来信息
 - 只做本地测试，不做远端短区间编译
+- 机械套用通用 `brainstorming` 或全量 TDD 流程，反而跳过了账户约束确认、远端编译和递进回测这些领域门禁
+- 编译刚通过就直接跑 1 年或 3 年，不先做短区间烟雾回测
+- 短区间已经暴露明显问题，还继续堆长区间回测掩盖问题
 - 滑点和手续费写成理想值，导致回测解释失真
 - 忽略 100 股整数手、最低佣金和最小成交额，小资金账户无法执行
 - 遇到停牌、涨跌停、缺失数据或空结果时直接报错或继续下单
