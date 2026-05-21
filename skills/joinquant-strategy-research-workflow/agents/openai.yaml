@@ -1,0 +1,4 @@
+interface:
+  display_name: "聚宽策略研究工作流"
+  short_description: "编排单个研究假设的本地研究包、正式版本与跨版本结论留痕"
+  default_prompt: "帮我编排一个聚宽单研究假设的研究包、正式版本和结论记录流程"
