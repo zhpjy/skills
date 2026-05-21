@@ -37,7 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     strategy_create.add_argument("--name", required=True)
     _add_code_source_args(strategy_create)
     _add_strategy_backtest_defaults(strategy_create)
-    strategy_create.add_argument("--folder-id")
+    strategy_create.add_argument("--folder-id", required=True)
     strategy_update = strategy_subparsers.add_parser("update-code")
     strategy_update.add_argument("--id", required=True, dest="strategy_id")
     strategy_update.add_argument("--name")

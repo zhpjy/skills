@@ -98,6 +98,20 @@ class JqcliStrategyTest(unittest.TestCase):
         self.assertEqual(http.posts[0]["path"], "/algorithm/index/save")
         self.assertEqual(http.posts[0]["data"]["algorithm[name]"], "新策略")
 
+    def test_create_strategy_requires_folder_id(self):
+        service = StrategyService(FakeHttpClient(token_html=""), token_provider=lambda: "session-token")
+
+        with self.assertRaises(ValueError):
+            service.create_strategy(
+                name="新策略",
+                code="print(1)",
+                start_date="2025-01-01",
+                end_date="2025-01-31",
+                capital="100000",
+                frequency="day",
+                folder_id="",
+            )
+
     def test_rename_strategy_uses_har_observed_set_name_endpoint(self):
         http = FakeHttpClient(
             token_html="",

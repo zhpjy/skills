@@ -58,11 +58,11 @@ class StrategyService:
         capital: str,
         frequency: str,
         strategy_type: str = "stock",
-        folder_id: str | None = None,
+        folder_id: str,
     ) -> dict[str, Any]:
-        params: dict[str, Any] = {"restore": 0, "type": strategy_type, "baseCapital": capital}
-        if folder_id:
-            params["fId"] = folder_id
+        if not str(folder_id).strip():
+            raise ValueError("folder_id is required")
+        params: dict[str, Any] = {"restore": 0, "type": strategy_type, "baseCapital": capital, "fId": folder_id}
         response = self.http_client.get(
             "/algorithm/index/new",
             params=params,

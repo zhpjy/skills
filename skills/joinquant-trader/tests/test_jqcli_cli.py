@@ -15,10 +15,17 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.strategy_id, "123")
 
     def test_strategy_create_parser(self):
-        args = build_parser().parse_args(["strategy", "create", "--name", "demo", "--file", "demo.py"])
+        args = build_parser().parse_args(
+            ["strategy", "create", "--name", "demo", "--file", "demo.py", "--folder-id", "122341"]
+        )
         self.assertEqual(args.action, "create")
         self.assertEqual(args.name, "demo")
         self.assertEqual(args.file, "demo.py")
+        self.assertEqual(args.folder_id, "122341")
+
+    def test_strategy_create_parser_requires_folder_id(self):
+        with self.assertRaises(SystemExit):
+            build_parser().parse_args(["strategy", "create", "--name", "demo", "--file", "demo.py"])
 
     def test_strategy_create_parser_supports_folder_id(self):
         args = build_parser().parse_args(

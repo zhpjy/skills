@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from typing import Callable, Protocol
@@ -63,13 +64,19 @@ class JoinQuantAuthClient:
         return text in {"true", "1", "ok"} or '"islogin":true' in text.replace(" ", "")
 
     def login(self, username: str, password: str) -> SessionState:
+        self.http_client.get("/user/login/index", params={"reason": "logout"})
         response = self.http_client.post_form(
             "/user/login/doLoginByText",
             {"username": username, "pwd": password},
+            headers={"Referer": f"{self.http_client.base_url}/user/login/index?reason=logout"},
         )
         if response.status >= 400:
             raise AuthError(f"Login HTTP status {response.status}")
-        token = _extract_token(response.text)
+        self.http_client.get("/view/user/floor", params={"type": "mainFloor"})
+        if not self.is_login():
+            message = _extract_login_error_message(response.text)
+            raise AuthError(message or "Login failed or requires manual verification")
+        token = self.http_client.get_cookie_value("token") or _extract_token(response.text)
         state = self.http_client.get_session(token=token)
         if not state.cookies:
             raise AuthError("Login failed or requires manual verification")
@@ -77,13 +84,49 @@ class JoinQuantAuthClient:
 
 
 def _truthy_login_value(data: dict) -> bool:
-    for key in ("isLogin", "is_login", "login", "loggedIn", "status", "success"):
-        value = data.get(key)
-        if value is True or value == 1:
+    for key in ("isLogin", "is_login", "login", "loggedIn", "success"):
+        if _is_truthy_login_scalar(data.get(key)):
             return True
-        if isinstance(value, str) and value.lower() in {"true", "1", "ok", "success"}:
-            return True
+    nested = data.get("data")
+    if isinstance(nested, dict) and _truthy_login_value(nested):
+        return True
     return False
+
+
+def _is_truthy_login_scalar(value: object) -> bool:
+    if value is True or value == 1:
+        return True
+    if isinstance(value, str) and value.lower() in {"true", "1", "ok", "success"}:
+        return True
+    return False
+
+
+def _extract_login_error_message(text: str) -> str | None:
+    data = _json_dict_or_none(text)
+    if data is None or _truthy_login_value(data):
+        return None
+    status = data.get("status")
+    code = data.get("code")
+    msg = data.get("msg")
+    status_ok = status in (None, 0, "0", False, "false", "False")
+    code_ok = code in (None, 0, "0", "00000")
+    if status_ok and code_ok:
+        return None
+    if isinstance(msg, str) and msg.strip():
+        return msg.strip()
+    if code not in (None, ""):
+        return f"Login failed with code {code}"
+    return "Login failed"
+
+
+def _json_dict_or_none(text: str) -> dict | None:
+    if not text.strip():
+        return None
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def _extract_token(text: str) -> str | None:

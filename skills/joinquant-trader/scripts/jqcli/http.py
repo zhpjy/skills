@@ -45,6 +45,12 @@ class JoinQuantHttpClient:
         cookies = {cookie.name: cookie.value for cookie in self.cookie_jar}
         return SessionState(cookies=cookies, token=token)
 
+    def get_cookie_value(self, name: str) -> str | None:
+        for cookie in self.cookie_jar:
+            if cookie.name == name:
+                return cookie.value
+        return None
+
     def get(self, path: str, params: dict[str, object] | None = None) -> HttpResponse:
         url = self._url(path, params)
         request = Request(url, headers=self._headers())
