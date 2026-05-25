@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Script Standards"
+  short_description: "Python脚本编写、依赖声明、uv执行与质量校验规范"
+  default_prompt: "Use $python-script-standards to write or revise a Python script with uv execution, PEP 723 dependency metadata, and Chinese comments for the main flow."
