@@ -9,7 +9,7 @@ from jqcli.backtest import BacktestService
 from jqcli.config import ConfigError, load_config
 from jqcli.factor import FactorService
 from jqcli.http import JoinQuantHttpClient
-from jqcli.output import error_response, print_json
+from jqcli.output import error_response, print_json, success_response
 from jqcli.session import load_session, save_session
 from jqcli.strategy import StrategyService
 
@@ -224,22 +224,21 @@ def build_context():
 
 
 def dispatch(args, context):
-    from jqcli.output import success_response
-
     if args.resource == "auth" and args.action == "status":
         state = context["auth"].ensure_session()
-        return success_response({"authenticated": bool(state.cookies), "token_present": bool(state.token)})
+        return _success(args, {"authenticated": bool(state.cookies), "token_present": bool(state.token)})
     if args.resource == "auth" and args.action == "login":
         state = context["auth"].ensure_session()
-        return success_response({"authenticated": bool(state.cookies), "token_present": bool(state.token)})
+        return _success(args, {"authenticated": bool(state.cookies), "token_present": bool(state.token)})
     if args.resource == "strategy":
         context["auth"].ensure_session()
         if args.action == "list":
-            return success_response({"strategies": context["strategy"].list_strategies(args.folder_id)})
+            return _success(args, {"strategies": context["strategy"].list_strategies(args.folder_id)})
         if args.action == "get":
-            return success_response(context["strategy"].get_strategy(args.strategy_id))
+            return _success(args, context["strategy"].get_strategy(args.strategy_id))
         if args.action == "create":
-            return success_response(
+            return _success(
+                args,
                 context["strategy"].create_strategy(
                     name=args.name,
                     code=read_code_source(args),
@@ -252,7 +251,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "update-code":
-            return success_response(
+            return _success(
+                args,
                 context["strategy"].save_strategy(
                     args.strategy_id,
                     name=args.name,
@@ -264,21 +264,24 @@ def dispatch(args, context):
                 )
             )
         if args.action == "rename":
-            return success_response(context["strategy"].rename_strategy(args.strategy_id, args.name))
+            return _success(args, context["strategy"].rename_strategy(args.strategy_id, args.name))
         if args.action == "delete":
             if not args.confirm_delete:
                 return error_response("CONFIRMATION_REQUIRED", "Pass --confirm-delete to delete a strategy")
-            return success_response(context["strategy"].delete_strategy(args.strategy_id))
+            return _success(args, context["strategy"].delete_strategy(args.strategy_id))
     if args.resource in {"directory", "dir"}:
         context["auth"].ensure_session()
         if args.action == "list":
-            return success_response({"directories": context["strategy"].list_directories(args.parent_id)})
+            return _success(args, {"directories": context["strategy"].list_directories(args.parent_id)})
         if args.action == "create":
-            return success_response(context["strategy"].create_directory(name=args.name, parent_id=args.parent_id))
+            return _success(args, context["strategy"].create_directory(name=args.name, parent_id=args.parent_id))
         if args.action == "delete":
             if not args.confirm_delete:
                 return error_response("CONFIRMATION_REQUIRED", "Pass --confirm-delete to delete a directory")
-            return success_response(context["strategy"].delete_directory(directory_id=args.directory_id, parent_id=args.parent_id))
+            return _success(
+                args,
+                context["strategy"].delete_directory(directory_id=args.directory_id, parent_id=args.parent_id),
+            )
     if args.resource == "backtest":
         if args.action == "run":
             validation_error = _validate_backtest_dates(args.start_date, args.end_date)
@@ -286,7 +289,8 @@ def dispatch(args, context):
                 return validation_error
         context["auth"].ensure_session()
         if args.action == "run":
-            return success_response(
+            return _success(
+                args,
                 context["backtest"].run_backtest(
                     args.strategy_id,
                     args.start_date,
@@ -296,7 +300,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "compile":
-            return success_response(
+            return _success(
+                args,
                 context["backtest"].compile_strategy(
                     args.strategy_id,
                     COMPILE_START_DATE,
@@ -306,31 +311,32 @@ def dispatch(args, context):
                 )
             )
         if args.action == "status":
-            return success_response(context["backtest"].get_status(args.backtest_id))
+            return _success(args, context["backtest"].get_status(args.backtest_id))
         if args.action == "result":
-            return success_response(context["backtest"].get_result(args.backtest_id))
+            return _success(args, context["backtest"].get_result(args.backtest_id))
         if args.action == "stats":
-            return success_response(context["backtest"].get_stats(args.backtest_id, full=args.full))
+            return _success(args, context["backtest"].get_stats(args.backtest_id, full=args.full))
         if args.action == "risk":
-            return success_response(context["backtest"].get_risk(args.backtest_id, full=args.full))
+            return _success(args, context["backtest"].get_risk(args.backtest_id, full=args.full))
         if args.action == "positions":
-            return success_response(context["backtest"].get_positions(args.backtest_id, full=args.full))
+            return _success(args, context["backtest"].get_positions(args.backtest_id, full=args.full))
         if args.action == "transactions":
-            return success_response(context["backtest"].get_transactions(args.backtest_id, full=args.full))
+            return _success(args, context["backtest"].get_transactions(args.backtest_id, full=args.full))
         if args.action == "errors":
-            return success_response(context["backtest"].get_errors(args.backtest_id, full=args.full))
+            return _success(args, context["backtest"].get_errors(args.backtest_id, full=args.full))
         if args.action == "logs":
-            return success_response(context["backtest"].get_logs(args.backtest_id, offset=args.offset, full=args.full))
+            return _success(args, context["backtest"].get_logs(args.backtest_id, offset=args.offset, full=args.full))
         if args.action == "detail":
-            return success_response(context["backtest"].get_detail(args.backtest_id))
+            return _success(args, context["backtest"].get_detail(args.backtest_id))
     if args.resource == "factor":
         context["auth"].ensure_session()
         if args.action == "settings":
-            return success_response(context["factor"].get_settings())
+            return _success(args, context["factor"].get_settings())
         if args.action == "categories":
-            return success_response(context["factor"].list_categories())
+            return _success(args, context["factor"].list_categories())
         if args.action == "list":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].list_factors(
                     category_id=args.category_id,
                     universe_type=args.universe_type,
@@ -341,9 +347,10 @@ def dispatch(args, context):
                 )
             )
         if args.action == "info":
-            return success_response(context["factor"].get_info(args.factor_id))
+            return _success(args, context["factor"].get_info(args.factor_id))
         if args.action == "performance":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_performance(
                     factor_id=args.factor_id,
                     universe_type=args.universe_type,
@@ -356,7 +363,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "daily-stats":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_daily_stats(
                     factor_id=args.factor_id,
                     side=args.side,
@@ -370,7 +378,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "ic":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_ic(
                     factor_id=args.factor_id,
                     universe_type=args.universe_type,
@@ -382,7 +391,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "turnovers":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_turnovers(
                     factor_id=args.factor_id,
                     side=args.side,
@@ -396,7 +406,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "stocks":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_stock_list(
                     factor_id=args.factor_id,
                     universe_type=args.universe_type,
@@ -404,7 +415,8 @@ def dispatch(args, context):
                 )
             )
         if args.action == "detail":
-            return success_response(
+            return _success(
+                args,
                 context["factor"].get_detail(
                     factor_id=args.factor_id,
                     universe_type=args.universe_type,
@@ -420,6 +432,10 @@ def dispatch(args, context):
                 )
             )
     return error_response("COMMAND_UNSUPPORTED", "Command is not implemented yet")
+
+
+def _success(args, data):
+    return success_response(data, include_raw=bool(getattr(args, "full", False)))
 
 
 def read_code_source(args) -> str:

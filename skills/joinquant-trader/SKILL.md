@@ -9,7 +9,7 @@ description: Use when需要通过项目内 jqcli 操作聚宽远端策略、目�
 
 这个 skill 使用项目内置 `jqcli` 操作聚宽。`jqcli` 面向 AI 自动化：所有命令输出 JSON，调用前会自动复用或刷新登录态。
 
-高体积查询命令默认返回摘要，减少 token 消耗；只有显式传 `--full` 时才返回完整 payload。
+高体积查询命令默认返回摘要，减少 token 消耗；CLI 默认不会输出 `raw` 原始 payload，只有显式传 `--full` 时才保留完整 payload/`raw`。
 
 这个 skill 只负责远端策略、目录、回测和因子接口操作。
 
@@ -97,7 +97,7 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 - 不要输出 `.env`、cookie、token、session 文件内容。
 - 写策略前先读取远端策略，确认目标 `strategy-id` 正确。
 - 回测评价优先用 `backtest detail`，需要原始明细时再调用 `stats/risk/positions/transactions/logs/errors`。
-- `backtest stats/risk/positions/transactions/logs/errors` 默认返回摘要；只有在排查明细时才加 `--full`。
+- `backtest stats/risk/positions/transactions/logs/errors` 默认返回摘要；只有在排查明细时才加 `--full`。默认输出会去掉 `raw`，避免无谓 token 消耗。
 - 因子大曲线输出可能很长，除非用户要求画图或时间序列分析，否则不要默认拉取或完整展示。
 
 ## 验证

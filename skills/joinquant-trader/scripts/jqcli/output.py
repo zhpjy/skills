@@ -4,8 +4,8 @@ import json
 from typing import Any
 
 
-def success_response(data: Any) -> dict[str, Any]:
-    return {"ok": True, "data": data}
+def success_response(data: Any, *, include_raw: bool = True) -> dict[str, Any]:
+    return {"ok": True, "data": sanitize_for_cli(data, include_raw=include_raw)}
 
 
 def error_response(
@@ -25,6 +25,20 @@ def error_response(
 
 def print_json(payload: dict[str, Any]) -> None:
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def sanitize_for_cli(value: Any, *, include_raw: bool) -> Any:
+    if include_raw:
+        return value
+    if isinstance(value, list):
+        return [sanitize_for_cli(item, include_raw=include_raw) for item in value]
+    if isinstance(value, dict):
+        return {
+            key: sanitize_for_cli(child, include_raw=include_raw)
+            for key, child in value.items()
+            if key != "raw"
+        }
+    return value
 
 
 def summarize_list(items: Any, *, sample_size: int = 5, item_mapper=None) -> dict[str, Any]:

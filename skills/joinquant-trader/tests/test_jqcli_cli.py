@@ -275,6 +275,46 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(payload["data"]["start_date"], "2026-04-20")
         self.assertEqual(payload["data"]["end_date"], "2026-04-22")
 
+    def test_dispatch_removes_raw_by_default(self):
+        args = build_parser().parse_args(["backtest", "status", "--backtest-id", "bt1"])
+
+        class FakeAuth:
+            def ensure_session(self):
+                return None
+
+        class FakeBacktest:
+            def get_status(self, backtest_id):
+                return {
+                    "backtest_id": backtest_id,
+                    "status": "2",
+                    "summary": {"overall_return": 0.12},
+                    "raw": {"data": {"status": "2", "overallReturn": 0.12}},
+                }
+
+        payload = dispatch(args, {"auth": FakeAuth(), "backtest": FakeBacktest()})
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "2")
+        self.assertNotIn("raw", payload["data"])
+
+    def test_dispatch_preserves_raw_in_full_mode(self):
+        args = build_parser().parse_args(["backtest", "stats", "--backtest-id", "bt1", "--full"])
+
+        class FakeAuth:
+            def ensure_session(self):
+                return None
+
+        class FakeBacktest:
+            def get_stats(self, backtest_id, full):
+                return {
+                    "backtest_id": backtest_id,
+                    "summary": {"sharpe": 1.8},
+                    "raw": {"data": {"sharpe": 1.8, "series": [1, 2, 3]}},
+                }
+
+        payload = dispatch(args, {"auth": FakeAuth(), "backtest": FakeBacktest()})
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["raw"]["data"]["sharpe"], 1.8)
+
 
 if __name__ == "__main__":
     unittest.main()
