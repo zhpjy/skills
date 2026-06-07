@@ -70,10 +70,17 @@ def build_parser() -> argparse.ArgumentParser:
     backtest_run.add_argument("--end-date", required=True)
     backtest_run.add_argument("--capital", default="100000")
     backtest_run.add_argument("--frequency", default="day")
+    backtest_run.add_argument("--wait", action="store_true")
+    backtest_run.add_argument("--max-polls", type=int, default=60)
+    backtest_run.add_argument("--poll-interval", type=float, default=2.0)
     backtest_compile = backtest_subparsers.add_parser("compile")
     backtest_compile.add_argument("--strategy-id", required=True)
     backtest_compile.add_argument("--capital", default="100000")
     backtest_compile.add_argument("--frequency", default="day")
+    backtest_wait = backtest_subparsers.add_parser("wait")
+    backtest_wait.add_argument("--backtest-id", required=True)
+    backtest_wait.add_argument("--max-polls", type=int, default=60)
+    backtest_wait.add_argument("--poll-interval", type=float, default=2.0)
     for action in ("status", "result", "stats", "risk", "positions", "transactions", "errors", "detail"):
         command = backtest_subparsers.add_parser(action)
         command.add_argument("--backtest-id", required=True)
@@ -297,6 +304,9 @@ def dispatch(args, context):
                     args.end_date,
                     args.capital,
                     args.frequency,
+                    wait=args.wait,
+                    max_polls=args.max_polls,
+                    poll_interval=args.poll_interval,
                 )
             )
         if args.action == "compile":
@@ -309,6 +319,15 @@ def dispatch(args, context):
                     args.capital,
                     args.frequency,
                 )
+            )
+        if args.action == "wait":
+            return _success(
+                args,
+                context["backtest"].wait_for_backtest(
+                    args.backtest_id,
+                    max_polls=args.max_polls,
+                    poll_interval=args.poll_interval,
+                ),
             )
         if args.action == "status":
             return _success(args, context["backtest"].get_status(args.backtest_id))

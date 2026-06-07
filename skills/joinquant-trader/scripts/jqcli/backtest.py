@@ -22,8 +22,22 @@ class BacktestService:
         end_date: str,
         capital: str,
         frequency: str,
+        *,
+        wait: bool = False,
+        max_polls: int = 60,
+        poll_interval: float = 2.0,
     ) -> dict[str, Any]:
-        return self._build_backtest(strategy_id, start_date, end_date, capital, frequency)
+        result = self._build_backtest(strategy_id, start_date, end_date, capital, frequency)
+        if not wait:
+            return result
+        backtest_id = result.get("backtest_id")
+        if not backtest_id:
+            return {
+                **result,
+                "completed": False,
+                "errors": ["backtest_id_not_found"],
+            }
+        return self.wait_for_backtest(backtest_id, max_polls=max_polls, poll_interval=poll_interval)
 
     def compile_strategy(
         self,
@@ -134,6 +148,37 @@ class BacktestService:
         parsed = parse_backtest_result(response.text)
         parsed["backtest_id"] = backtest_id
         return parsed
+
+    def wait_for_backtest(
+        self,
+        backtest_id: str,
+        *,
+        max_polls: int = 60,
+        poll_interval: float = 2.0,
+    ) -> dict[str, Any]:
+        last_status: dict[str, Any] | None = None
+        for attempt in range(max(1, max_polls)):
+            last_status = self.get_status(backtest_id)
+            state = _state_from_raw(last_status.get("raw")) or last_status.get("status")
+            if _is_final_backtest_state(state):
+                return {
+                    "backtest_id": backtest_id,
+                    "completed": True,
+                    "status": state,
+                    "attempts": attempt + 1,
+                    "result": last_status,
+                }
+            if attempt + 1 < max_polls and poll_interval > 0:
+                time.sleep(poll_interval)
+
+        return {
+            "backtest_id": backtest_id,
+            "completed": False,
+            "status": _state_from_raw(last_status.get("raw")) if last_status else None,
+            "attempts": max(1, max_polls),
+            "warnings": ["backtest_wait_timeout"],
+            "result": last_status,
+        }
 
     def get_result(self, backtest_id: str) -> dict[str, Any]:
         response = self._post_backtest(
@@ -467,6 +512,12 @@ def _runtime_status_from_raw(value: Any) -> str | None:
             return str(current)
     nested = _first_nested_value(value, "state", "phase", "status")
     return str(nested) if nested is not None else None
+
+
+def _is_final_backtest_state(state: Any) -> bool:
+    if state is None:
+        return False
+    return str(state) not in {"0", "1"}
 
 
 def _data_dict(value: Any) -> dict[str, Any]:

@@ -273,6 +273,74 @@ class JqcliBacktestTest(unittest.TestCase):
         self.assertEqual(result["backtest_id"], "bt-1")
         self.assertEqual(service.build_calls[0][0:5], ("s1", "2025-01-01", "2025-01-31", "100000", "day"))
 
+    def test_run_backtest_waits_when_requested(self):
+        class FakeBacktestService(BacktestService):
+            def __init__(self):
+                self.strategy_service = None
+                self.http_client = None
+                self.token_provider = lambda: "t"
+
+            def _build_backtest(self, strategy_id, start_date, end_date, capital, frequency, **kwargs):
+                return {"backtest_id": "bt-1"}
+
+            def wait_for_backtest(self, backtest_id, *, max_polls, poll_interval):
+                return {
+                    "backtest_id": backtest_id,
+                    "completed": True,
+                    "attempts": max_polls,
+                    "poll_interval": poll_interval,
+                }
+
+        service = FakeBacktestService()
+        result = service.run_backtest(
+            "s1",
+            "2025-01-01",
+            "2025-01-31",
+            "100000",
+            "day",
+            wait=True,
+            max_polls=4,
+            poll_interval=0.25,
+        )
+        self.assertTrue(result["completed"])
+        self.assertEqual(result["attempts"], 4)
+        self.assertEqual(result["poll_interval"], 0.25)
+
+    def test_wait_for_backtest_returns_when_final_state_seen(self):
+        class FakeBacktestService(BacktestService):
+            def __init__(self):
+                self.strategy_service = None
+                self.http_client = None
+                self.token_provider = lambda: "t"
+                self.calls = 0
+
+            def get_status(self, backtest_id):
+                self.calls += 1
+                state = "1" if self.calls == 1 else "2"
+                return {"backtest_id": backtest_id, "status": state, "raw": {"data": {"status": state}}}
+
+        service = FakeBacktestService()
+        result = service.wait_for_backtest("bt-1", max_polls=3, poll_interval=0)
+        self.assertTrue(result["completed"])
+        self.assertEqual(result["status"], "2")
+        self.assertEqual(result["attempts"], 2)
+
+    def test_wait_for_backtest_returns_timeout_warning(self):
+        class FakeBacktestService(BacktestService):
+            def __init__(self):
+                self.strategy_service = None
+                self.http_client = None
+                self.token_provider = lambda: "t"
+
+            def get_status(self, backtest_id):
+                return {"backtest_id": backtest_id, "status": "1", "raw": {"data": {"status": "1"}}}
+
+        service = FakeBacktestService()
+        result = service.wait_for_backtest("bt-1", max_polls=2, poll_interval=0)
+        self.assertFalse(result["completed"])
+        self.assertEqual(result["attempts"], 2)
+        self.assertIn("backtest_wait_timeout", result["warnings"])
+
 
 if __name__ == "__main__":
     unittest.main()

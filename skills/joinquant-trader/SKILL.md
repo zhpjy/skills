@@ -52,7 +52,8 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py directory de
 
 # 回测
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest compile --strategy-id <strategy-id>
-uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run --strategy-id <strategy-id> --start-date <start-date> --end-date <end-date>
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest run --strategy-id <strategy-id> --start-date <start-date> --end-date <end-date> --wait
+uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest wait --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest detail --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest logs --backtest-id <backtest-id>
 uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py backtest errors --backtest-id <backtest-id>
@@ -86,7 +87,9 @@ uv run python .agents/skills/joinquant-trader/scripts/jqcli_tool.py factor stock
 - 这个参数会按 HAR 观察透传到 `/algorithm/index/new?fId=...`。
 - 修改策略后，先调用 `backtest compile`，不要直接跑完整回测；这个命令不需要额外传回测日期。
 - 如果 `compiled=false`，读取返回里的 `errors`，修改代码后用 `strategy update-code` 写回，再重复 `backtest compile`。
-- `backtest run` 直接使用 `--start-date` 和 `--end-date` 发起正式回测，不会自动追加一次编译门禁。
+- agent 包装入口 `jqcli_tool.py` 默认按 agent 模式运行：不暴露 `backtest status`，且 `backtest run` 必须显式带 `--wait`；需要等待已有回测时改用 `backtest wait --backtest-id ...`。
+- 普通 CLI 用户如果直接使用 `jqcli` 主入口，不受这个 agent 包装约束。
+- `backtest run --wait` 直接使用 `--start-date` 和 `--end-date` 发起正式回测，并在受控轮询内等待完成；不会自动追加一次编译门禁。
 - 编译接口来自 HAR 观察到的 `POST /algorithm/index/build?ajax=1`，其中 `backtest[type]=1`；正式回测仍使用 `backtest[type]=0`。
 
 不要把这个 skill 当作策略代码生成器。它负责调用远端接口，不负责决定策略逻辑或实盘约束。

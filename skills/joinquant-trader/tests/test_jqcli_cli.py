@@ -80,6 +80,29 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.strategy_id, "123")
         self.assertEqual(args.capital, "100000")
         self.assertEqual(args.frequency, "day")
+        self.assertFalse(args.wait)
+
+    def test_backtest_run_parser_supports_wait(self):
+        args = build_parser().parse_args(
+            [
+                "backtest",
+                "run",
+                "--strategy-id",
+                "123",
+                "--start-date",
+                "2025-01-01",
+                "--end-date",
+                "2025-01-31",
+                "--wait",
+                "--max-polls",
+                "8",
+                "--poll-interval",
+                "0.5",
+            ]
+        )
+        self.assertTrue(args.wait)
+        self.assertEqual(args.max_polls, 8)
+        self.assertEqual(args.poll_interval, 0.5)
 
     def test_backtest_compile_parser(self):
         args = build_parser().parse_args(
@@ -101,6 +124,13 @@ class JqcliCliTest(unittest.TestCase):
         self.assertEqual(args.resource, "backtest")
         self.assertEqual(args.action, "detail")
         self.assertEqual(args.backtest_id, "bt1")
+
+    def test_backtest_wait_parser(self):
+        args = build_parser().parse_args(["backtest", "wait", "--backtest-id", "bt1", "--max-polls", "9"])
+        self.assertEqual(args.resource, "backtest")
+        self.assertEqual(args.action, "wait")
+        self.assertEqual(args.backtest_id, "bt1")
+        self.assertEqual(args.max_polls, 9)
 
     def test_backtest_logs_parser_supports_offset(self):
         args = build_parser().parse_args(["backtest", "logs", "--backtest-id", "bt1", "--offset", "100"])
@@ -225,13 +255,14 @@ class JqcliCliTest(unittest.TestCase):
                 self.called = True
 
         class FakeBacktest:
-            def run_backtest(self, strategy_id, start_date, end_date, capital, frequency):
+            def run_backtest(self, strategy_id, start_date, end_date, capital, frequency, **kwargs):
                 return {
                     "strategy_id": strategy_id,
                     "start_date": start_date,
                     "end_date": end_date,
                     "capital": capital,
                     "frequency": frequency,
+                    **kwargs,
                 }
 
         auth = FakeAuth()
@@ -240,6 +271,33 @@ class JqcliCliTest(unittest.TestCase):
         self.assertTrue(auth.called)
         self.assertEqual(payload["data"]["start_date"], "2024-01-01")
         self.assertEqual(payload["data"]["end_date"], "2025-01-31")
+        self.assertFalse(payload["data"]["wait"])
+
+    def test_backtest_wait_dispatch_uses_wait_service(self):
+        args = build_parser().parse_args(["backtest", "wait", "--backtest-id", "bt1", "--max-polls", "3"])
+
+        class FakeAuth:
+            def __init__(self):
+                self.called = False
+
+            def ensure_session(self):
+                self.called = True
+
+        class FakeBacktest:
+            def wait_for_backtest(self, backtest_id, max_polls, poll_interval):
+                return {
+                    "backtest_id": backtest_id,
+                    "completed": True,
+                    "attempts": max_polls,
+                    "poll_interval": poll_interval,
+                }
+
+        auth = FakeAuth()
+        payload = dispatch(args, {"auth": auth, "backtest": FakeBacktest()})
+        self.assertTrue(payload["ok"])
+        self.assertTrue(auth.called)
+        self.assertEqual(payload["data"]["backtest_id"], "bt1")
+        self.assertEqual(payload["data"]["attempts"], 3)
 
     def test_backtest_compile_dispatch_uses_internal_compile_window(self):
         args = build_parser().parse_args(
