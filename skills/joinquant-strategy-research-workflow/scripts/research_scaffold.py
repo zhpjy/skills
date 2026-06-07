@@ -255,6 +255,7 @@ def init_version(
         "version_id": version_id,
         "parent_version": parent_version,
         "branch_type": branch_type,
+        "phase": "pending",
         "remote_directory_name": remote_directory_name,
         "remote_directory_id": None,
         "remote_strategy_name": None,
@@ -264,6 +265,9 @@ def init_version(
         "backtest_start_date": None,
         "backtest_end_date": None,
         "metrics_summary": {},
+        "factors": [],
+        "data_split": None,
+        "grid_params": None,
     }
     (version_dir / "meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
