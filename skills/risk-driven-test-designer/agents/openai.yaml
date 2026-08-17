@@ -1,0 +1,3 @@
+interface:
+  display_name: "风险驱动测试设计"
+  short_description: "生成最小而有效的测试，避免重复和低价值测试"
