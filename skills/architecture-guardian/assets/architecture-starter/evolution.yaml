@@ -1,0 +1,4 @@
+expected: {}
+stable: {}
+uncertain: {}
+# Only `expected` may justify proactive design, and only when evidence is concrete.

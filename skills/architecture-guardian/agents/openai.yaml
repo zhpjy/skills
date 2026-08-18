@@ -1,0 +1,10 @@
+interface:
+  display_name: Architecture Guardian
+  short_description: Extract and govern codebase architecture with minimal drift.
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

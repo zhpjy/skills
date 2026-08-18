@@ -1,0 +1,15 @@
+version: 0.2
+principles:
+  - explicit_ownership
+  - information_hiding
+  - minimal_architecture_delta
+hard_rules:
+  - id: ARCH-001
+    statement: Cross-boundary mutation of authoritative state must use an explicitly accepted contract, event, or documented exception.
+  - id: ARCH-002
+    statement: A mutable business fact must have one authoritative owner unless a transition explicitly defines temporary dual ownership.
+guidelines:
+  - id: ARCH-G01
+    statement: Prefer the smallest architecture change justified by current requirements and concrete evolution pressure.
+  - id: ARCH-G02
+    statement: Do not persist implementation details as architecture state unless they constrain multiple future changes.
