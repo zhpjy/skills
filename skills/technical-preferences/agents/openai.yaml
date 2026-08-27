@@ -1,0 +1,4 @@
+interface:
+  display_name: "技术偏好"
+  short_description: "使用 mise 管理环境，并遵循 Python 脚本工程规范"
+  default_prompt: "Use $technical-preferences to route language-specific standards, manage the environment with mise, and use Nix or Docker for missing tools."
