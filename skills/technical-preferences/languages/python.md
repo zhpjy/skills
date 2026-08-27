@@ -1,6 +1,6 @@
 # Python 语言规范
 
-本文件由 `technical-preferences` 内部路由读取。Python 运行时由 `mise` 管理，Python 包依赖和脚本执行由 `uv` 管理。
+本文件是 `technical-preferences` 的 Python 语言规范。Python 运行时由 `mise` 管理，Python 包依赖和脚本执行由 `uv` 管理。
 
 ## 依赖模式
 

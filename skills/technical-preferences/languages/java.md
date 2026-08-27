@@ -1,6 +1,6 @@
 # Java 语言规范
 
-本文件由 `technical-preferences` 内部路由读取。
+本文件是 `technical-preferences` 的 Java 语言规范。
 
 ## JDK 版本
 
