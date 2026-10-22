@@ -108,6 +108,10 @@ _.file = ".env"
 
 字段别名、DDL 字段名、字段注释和逻辑说明必须保持一致。
 
+## 界面与文案
+
+避免不必要的次级标签和说明，让布局自己解释：Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
+
 ## 语言规范
 
 识别当前任务涉及的语言后，必须读取对应的规范；涉及多种语言时读取全部相关规范：
