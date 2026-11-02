@@ -68,6 +68,40 @@ run = "<project-test-command>"
 
 不要自动信任来源不明的 `mise.toml`。配置包含模板、环境变量、hook 或其他可执行行为时，先审查内容，再由用户决定是否执行 `mise trust`。
 
+### 任务命名
+
+mise 没有自定义子命令，统一用 task，按 `mise <task>` 调用。task 名与 mise 内置命令（`install`、`run`、`env`、`ls`、`use`、`exec` 等）相同时会被内置命令遮蔽，只能写成 `mise run <task>`，因此优先避开这些名字。
+
+固定任务名：
+
+| 任务 | 用途 |
+| --- | --- |
+| `setup` | 一次性初始化：安装工具和依赖、补 `.env` |
+| `dev` | 启动本地开发环境 |
+| `check` | 只读静态检查：格式校验 + lint + 类型检查 |
+| `fix` | 自动修复格式和可修复的 lint 问题 |
+| `test` | 运行测试 |
+| `build` | 构建产物 |
+| `verify` | 提交前门禁：`check` → `test` → `build` |
+| `clean` | 清理产物和缓存 |
+
+- 领域任务用冒号分命名空间，例如 `db:migrate`、`env:link`；`check:fmt` 这类子任务只被父任务依赖。
+- 聚合任务用 `depends` 按顺序串联，不用 `&&` 拼命令。
+- 每个 task 写 `description`，说明用途以及是否会修改文件。
+- `check` 只读，`fix` 才写文件；格式化和 lint 修复不要混进 `check`。
+- `sources`/`outputs` 增量跳过只用于 `build`，其他任务每次都执行。
+- 修改后运行 `mise tasks validate` 校验。
+
+```toml
+[tasks.check]
+description = "静态检查（只读）"
+depends = ["check:fmt", "lint", "typecheck"]
+
+[tasks.verify]
+description = "完整验证：检查 + 测试 + 构建"
+depends = ["check", "test", "build"]
+```
+
 ## 未安装工具
 
 需要使用但本机或项目 `mise.toml` 未声明的工具时，优先使用 `nix run` 或 Docker，不要直接修改系统环境：
