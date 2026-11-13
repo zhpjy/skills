@@ -29,3 +29,6 @@ yarn-error.log*
 .gradle/
 *.class
 out/
+
+# Local skill manager state
+.agents/
